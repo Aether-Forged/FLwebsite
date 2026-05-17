@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "forced-logic-site": {
+      "command": "npm",
+      "args": ["run", "mcp:server"]
+    }
+  }
+}
