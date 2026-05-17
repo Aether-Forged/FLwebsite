@@ -32,6 +32,13 @@ Copy `.env.example` to `.env` and set:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 
+For GitHub Pages builds, add the same values as repository secrets named:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+Those secrets are used at build time so the deployed site can talk to Supabase.
+
 ## GitHub
 
 This folder now has its own git repository.
