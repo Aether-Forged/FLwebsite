@@ -130,7 +130,7 @@ function App() {
         await Promise.all([
           supabase
             .from('approved_users')
-            .select('email, display_name, active')
+            .select('email, display_name, can_admin, active')
             .eq('email', email)
             .maybeSingle(),
           supabase
@@ -478,7 +478,7 @@ function App() {
               </button>
 
               <p className="auth-note">
-                This site uses approved accounts only. Sign-up is disabled on purpose.
+                This site uses approved accounts only. If your email is not on the access list, the session will be closed.
               </p>
             </form>
           )}
@@ -500,6 +500,17 @@ function App() {
                   This is the first authenticated layer of the site. It now pulls private workspace
                   content from Supabase and keeps the public page clean.
                 </p>
+                <div className="workspace-summary">
+                  <div className="status-chip">
+                    <span className={canAdmin ? 'dot dot-on' : 'dot dot-off'} />
+                    <span>{canAdmin ? 'Admin access enabled' : 'Approved user only'}</span>
+                  </div>
+                  <p className="auth-note">
+                    {canAdmin
+                      ? 'This account can manage approved users and workspace cards.'
+                      : 'This account can read the approved workspace only. Admin panel stays hidden until can_admin is true.'}
+                  </p>
+                </div>
                 <div className="dashboard-actions">
                   <a className="button primary" href="#services">
                     View services
