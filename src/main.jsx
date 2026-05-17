@@ -325,8 +325,8 @@ function App() {
       <div className="ambient ambient-right" />
 
       <header className="topbar">
-        <div className="brand-mark">
-          <img src="/forced-logic-logo.png" alt="Forced Logic logo" />
+        <div className="brand-mark" aria-label="Forced Logic logo">
+          <span className="brand-monogram">FL</span>
         </div>
         <div className="brand-copy">
           <p className="eyebrow">Precision engineered software</p>

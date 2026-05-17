@@ -37,6 +37,26 @@ a { color: inherit; text-decoration: none; }
 .topbar, .hero, .section-block, .contact-block { position: relative; z-index: 1; }
 .topbar { display: grid; grid-template-columns: 160px 1fr auto; gap: 24px; align-items: center; padding: 12px 0 32px; }
 .brand-mark img { width: 150px; height: 150px; object-fit: contain; display: block; filter: drop-shadow(0 0 28px rgba(25, 211, 255, 0.2)); }
+.brand-mark {
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  border: 1px solid rgba(104, 203, 255, 0.16);
+  background:
+    radial-gradient(circle at top, rgba(25, 211, 255, 0.15), transparent 58%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 24px rgba(25, 211, 255, 0.08);
+}
+
+.brand-monogram {
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  text-shadow: 0 0 18px rgba(25, 211, 255, 0.18);
+}
 .brand-copy { min-width: 0; }
 .eyebrow, .section-kicker { margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.34em; font-size: 0.72rem; color: var(--accent-2); }
 .brand-copy h1, .section-heading h2, .hero-copy h2, .contact-block h2, .split h2 { margin: 0; line-height: 0.96; letter-spacing: -0.04em; }
