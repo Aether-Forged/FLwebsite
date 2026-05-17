@@ -278,6 +278,51 @@ function App() {
           {message ? <p className="auth-message">{message}</p> : null}
         </section>
 
+        {session ? (
+          <section className="section-block dashboard-block">
+            <div className="section-heading">
+              <p className="section-kicker">Workspace</p>
+              <h2>Post-login control panel.</h2>
+            </div>
+            <div className="dashboard-grid">
+              <article className="dashboard-card dashboard-primary">
+                <p className="panel-label">Live Entry</p>
+                <h3>Forced Logic control panel</h3>
+                <p>
+                  This is the first authenticated layer of the site. It can grow into project tools,
+                  admin actions, Supabase-backed records, or private workspace modules.
+                </p>
+                <div className="dashboard-actions">
+                  <a className="button primary" href="#services">
+                    View services
+                  </a>
+                  <a className="button secondary" href="#contact">
+                    Contact
+                  </a>
+                </div>
+              </article>
+              <article className="dashboard-card">
+                <span className="dashboard-chip">Ready</span>
+                <h4>Auth status</h4>
+                <p>{session.user.email}</p>
+                <small>Signed in through Supabase session handling.</small>
+              </article>
+              <article className="dashboard-card">
+                <span className="dashboard-chip">Next</span>
+                <h4>Private modules</h4>
+                <p>Admin tools, content blocks, and project areas can be added behind login.</p>
+                <small>Keep the public page clean. Put the real tools here.</small>
+              </article>
+              <article className="dashboard-card">
+                <span className="dashboard-chip">Status</span>
+                <h4>Deployment</h4>
+                <p>GitHub Pages is serving the site and the workflow is already wired.</p>
+                <small>Future updates flow from the repo to the URL automatically.</small>
+              </article>
+            </div>
+          </section>
+        ) : null}
+
         <section id="services" className="section-block">
           <div className="section-heading">
             <p className="section-kicker">What we build</p>
