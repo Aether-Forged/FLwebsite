@@ -45,18 +45,19 @@ const defaultWorkspaceCards = [
 
 const workspaceModuleMeta = {
   'Session map': {
-    status: 'Navigation',
-    summary: 'Shows where the private area starts and what is currently active.',
-    actions: ['Review session state', 'Check live module', 'Return to top'],
+    status: 'Auth / navigation',
+    summary: 'Shows whether the private area is open and which module is active.',
+    actions: ['Review session state', 'Refresh auth view', 'Return to top'],
   },
   'Project areas': {
     status: 'Build zone',
     summary: 'Holds the parts of the site that can expand into real tools and pages.',
     actions: ['Plan a module', 'Open a tool area', 'Add new content'],
+    launchTargets: ['Session map', 'Deployment', 'Supabase feed'],
   },
   Deployment: {
-    status: 'Live',
-    summary: 'Tracks the build path that keeps the site online and current.',
+    status: 'Live / build',
+    summary: 'Tracks the build path that keeps the site online and shows the current commit.',
     actions: ['Check publish state', 'Confirm latest build', 'Inspect cache'],
   },
   'Supabase feed': {
@@ -73,6 +74,7 @@ function enhanceWorkspaceCard(card, index) {
     status: meta.status ?? card.badge,
     summary: meta.summary ?? card.body,
     actions: meta.actions ?? [card.note],
+    launchTargets: meta.launchTargets ?? [],
     index: String(index + 1).padStart(2, '0'),
   };
 }
@@ -99,7 +101,10 @@ function App() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [workspaceStatus, setWorkspaceStatus] = useState('Workspace table not loaded yet.');
+  const [workspaceActivity, setWorkspaceActivity] = useState('Choose a module action to update the workspace.');
   const [activeModuleId, setActiveModuleId] = useState(defaultWorkspaceCards[0].title);
+  const [workspaceRefreshTick, setWorkspaceRefreshTick] = useState(0);
+  const buildSha = import.meta.env.VITE_BUILD_SHA || 'local-dev';
 
   const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
   const workspaceModules = useMemo(
@@ -180,12 +185,26 @@ function App() {
     } else {
       setWorkspaceCards(defaultWorkspaceCards);
       setWorkspaceStatus('Login required.');
+      setWorkspaceActivity('Login to load live workspace cards.');
     }
 
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, workspaceRefreshTick]);
+
+  function handleModuleAction(moduleTitle, action) {
+    setWorkspaceActivity(`${action} on ${moduleTitle}.`);
+    if (action.toLowerCase().includes('refresh')) {
+      setWorkspaceStatus(`Refreshing ${moduleTitle.toLowerCase()}...`);
+      setWorkspaceRefreshTick((current) => current + 1);
+    }
+  }
+
+  function openModule(moduleTitle) {
+    setActiveModuleId(moduleTitle);
+    setWorkspaceActivity(`Opened ${moduleTitle}.`);
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -424,6 +443,7 @@ function App() {
               <div className="workspace-status-meta">
                 <span>{workspaceModules.length} loaded modules</span>
                 <span>{supabaseStatus.ready ? 'Supabase connected' : 'Local fallback'}</span>
+                <span>{workspaceActivity}</span>
               </div>
             </div>
             <div className="module-workspace">
@@ -507,6 +527,17 @@ function App() {
                           <span>Mode</span>
                           <strong>Live workspace</strong>
                         </div>
+                        {activeModule.title === 'Deployment' ? (
+                          <div className="module-detail-wide">
+                            <span>Build SHA</span>
+                            <strong>{buildSha}</strong>
+                          </div>
+                        ) : activeModule.title === 'Session map' ? (
+                          <div className="module-detail-wide">
+                            <span>Auth state</span>
+                            <strong>{session ? `Signed in as ${session.user.email}` : 'Signed out'}</strong>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="module-detail-note">
@@ -516,11 +547,33 @@ function App() {
                       </div>
                       <div className="module-action-list">
                         {activeModule.actions.map((action) => (
-                          <span key={action} className="module-action-pill">
+                          <button
+                            key={action}
+                            type="button"
+                            className="module-action-pill"
+                            onClick={() => handleModuleAction(activeModule.title, action)}
+                          >
                             {action}
-                          </span>
+                          </button>
                         ))}
                       </div>
+                      {activeModule.launchTargets?.length ? (
+                        <div className="module-launcher">
+                          <span>Quick launch</span>
+                          <div className="module-action-list">
+                            {activeModule.launchTargets.map((moduleTitle) => (
+                              <button
+                                key={moduleTitle}
+                                type="button"
+                                className="module-action-pill"
+                                onClick={() => openModule(moduleTitle)}
+                              >
+                                {moduleTitle}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </>
                   );
                 })()}
