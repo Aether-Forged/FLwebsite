@@ -8,6 +8,9 @@ create table if not exists public.approved_users (
   created_at timestamptz not null default now()
 );
 
+alter table public.approved_users
+  add column if not exists can_admin boolean not null default false;
+
 alter table public.approved_users enable row level security;
 
 create policy "Approved users can view their own approval"
@@ -89,6 +92,15 @@ create table if not exists public.workspace_cards (
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table public.workspace_cards
+  add column if not exists note text;
+
+alter table public.workspace_cards
+  add column if not exists order_index integer not null default 0;
+
+alter table public.workspace_cards
+  add column if not exists is_active boolean not null default true;
 
 alter table public.workspace_cards enable row level security;
 
