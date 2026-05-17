@@ -125,77 +125,79 @@ function App() {
       setWorkspaceStatus('Checking access...');
       setWorkspaceActionStatus('');
 
-      const email = session.user.email.toLowerCase();
-      const [{ data: approvalRows, error: approvalError }, { data: cards, error: cardsError }] =
-        await Promise.all([
-          supabase
-            .from('approved_users')
-            .select('email, display_name, can_admin, active')
-            .eq('email', email)
-            .maybeSingle(),
-          supabase
-            .from('workspace_cards')
-            .select('id, title, body, note, badge, order_index, is_active')
-            .eq('is_active', true)
-            .order('order_index', { ascending: true }),
-        ]);
+      try {
+        const email = session.user.email.toLowerCase();
+        const [{ data: approvalRows, error: approvalError }, { data: cards, error: cardsError }] =
+          await Promise.all([
+            supabase
+              .from('approved_users')
+              .select('email, display_name, can_admin, active')
+              .eq('email', email)
+              .maybeSingle(),
+            supabase
+              .from('workspace_cards')
+              .select('id, title, body, note, badge, order_index, is_active')
+              .eq('is_active', true)
+              .order('order_index', { ascending: true }),
+          ]);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (approvalError) {
-        setHasAccess(false);
-        setWorkspaceStatus(`Approval check unavailable: ${approvalError.message}`);
-        setMessage('Login succeeded, but workspace approval could not be confirmed.');
-        setAccessLoading(false);
-        return;
-      }
-
-      if (!approvalRows) {
-        setHasAccess(false);
-        setCanAdmin(false);
-        setWorkspaceStatus('Access denied for this email.');
-        setMessage('This account is not on the approved access list.');
-        await supabase.auth.signOut();
-        setAccessLoading(false);
-        return;
-      }
-
-      setHasAccess(true);
-      setCanAdmin(Boolean(approvalRows.can_admin));
-      setWorkspaceStatus(
-        approvalRows.display_name
-          ? `Approved for ${approvalRows.display_name}.`
-          : 'Approved user detected.',
-      );
-
-      const { data: cardRows, error: cardError } = await supabase
-        .from('workspace_cards')
-        .select('id, title, body, note, badge, order_index, is_active')
-        .eq('is_active', true)
-        .order('order_index', { ascending: true });
-
-      if (approvalRows.can_admin) {
-        const { data: accessRows, error: accessError } = await supabase
-          .from('approved_users')
-          .select('email, display_name, can_admin, active, created_at')
-          .order('email', { ascending: true });
-
-        if (accessError) {
-          setApprovedUsers([]);
-          setWorkspaceStatus(`Approved user table unavailable: ${accessError.message}`);
-        } else {
-          setApprovedUsers(accessRows ?? []);
+        if (approvalError) {
+          setHasAccess(false);
+          setWorkspaceStatus(`Approval check unavailable: ${approvalError.message}`);
+          setMessage('Login succeeded, but workspace approval could not be confirmed.');
+          return;
         }
-      }
 
-      if (cardError) {
-        setWorkspaceCards(defaultWorkspaceCards);
-        setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardError.message}`);
-      } else if (cardRows?.length) {
-        setWorkspaceCards(cardRows);
-      } else {
-        setWorkspaceCards(defaultWorkspaceCards);
-        setWorkspaceStatus('Workspace table is connected, but no cards have been added yet.');
+        if (!approvalRows) {
+          setHasAccess(false);
+          setCanAdmin(false);
+          setWorkspaceStatus('Access denied for this email.');
+          setMessage('This account is not on the approved access list.');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        setHasAccess(true);
+        setCanAdmin(Boolean(approvalRows.can_admin));
+        setWorkspaceStatus(
+          approvalRows.display_name
+            ? `Approved for ${approvalRows.display_name}.`
+            : 'Approved user detected.',
+        );
+
+        if (approvalRows.can_admin) {
+          const { data: accessRows, error: accessError } = await supabase
+            .from('approved_users')
+            .select('email, display_name, can_admin, active, created_at')
+            .order('email', { ascending: true });
+
+          if (accessError) {
+            setApprovedUsers([]);
+            setWorkspaceStatus(`Approved user table unavailable: ${accessError.message}`);
+          } else {
+            setApprovedUsers(accessRows ?? []);
+          }
+        }
+
+        if (cardsError) {
+          setWorkspaceCards(defaultWorkspaceCards);
+          setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardsError.message}`);
+        } else if (cards?.length) {
+          setWorkspaceCards(cards);
+        } else {
+          setWorkspaceCards(defaultWorkspaceCards);
+          setWorkspaceStatus('Workspace table is connected, but no cards have been added yet.');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setHasAccess(false);
+          setCanAdmin(false);
+          setWorkspaceCards(defaultWorkspaceCards);
+          setWorkspaceStatus(`Workspace load failed: ${error?.message || 'Unknown error'}`);
+          setMessage('The page stayed alive, but workspace loading hit a problem.');
+        }
       }
 
       setAccessLoading(false);
@@ -738,9 +740,49 @@ function App() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: error?.message || 'Unexpected rendering error.' };
+  }
+
+  componentDidCatch(error) {
+    console.error(error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="page-shell">
+          <main className="section-block auth-block">
+            <div className="section-heading">
+              <p className="section-kicker">System</p>
+              <h2>Something interrupted the page.</h2>
+            </div>
+            <p className="auth-message">
+              {this.state.message}
+            </p>
+            <p className="auth-note">
+              Refresh the page. If it keeps happening, the issue is now contained instead of blanking the site.
+            </p>
+          </main>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );
 
