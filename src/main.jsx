@@ -17,28 +17,28 @@ import './styles.css';
 
 const defaultWorkspaceCards = [
   {
-    badge: 'Ready',
-    title: 'Live workspace',
-    body: 'This private layer is the first authenticated surface for Forced Logic.',
-    note: 'Swap these defaults out for rows in Supabase when you are ready.',
+    badge: 'Overview',
+    title: 'Private workspace',
+    body: 'This is the signed-in control surface for Forced Logic. It stays behind login.',
+    note: 'Use this section as the home base for the site after authentication.',
   },
   {
-    badge: 'Next',
-    title: 'Private modules',
-    body: 'Add admin tools, content blocks, and project areas here behind login.',
-    note: 'This section is now wired to accept rows from the database.',
+    badge: 'Modules',
+    title: 'Project areas',
+    body: 'Drop in workspace modules for product pages, tools, notes, or build areas.',
+    note: 'Each card can become a live module as the site grows.',
   },
   {
     badge: 'Status',
     title: 'Deployment',
-    body: 'GitHub Pages serves the app and the workflow is already connected.',
-    note: 'Future pushes will update the live URL automatically.',
+    body: 'GitHub Pages serves the app and keeps the current build online.',
+    note: 'Pushes to main update the live URL automatically.',
   },
   {
-    badge: 'Control',
-    title: 'Supabase data',
-    body: 'Workspace cards and approved users both live in Supabase tables.',
-    note: 'Use the schema file to create the tables in the project.',
+    badge: 'Data',
+    title: 'Supabase feed',
+    body: 'Workspace cards are loaded from Supabase when the table is ready.',
+    note: 'The page falls back to these defaults if the table is empty.',
   },
 ];
 
@@ -348,22 +348,22 @@ function App() {
           <section id="workspace" className="section-block dashboard-block">
             <div className="section-heading">
               <p className="section-kicker">Workspace</p>
-              <h2>Post-login workspace.</h2>
+              <h2>Private module workspace.</h2>
             </div>
             <div className="dashboard-grid">
               <article className="dashboard-card dashboard-primary">
                 <p className="panel-label">Live Entry</p>
-                <h3>Forced Logic workspace</h3>
+                <h3>Forced Logic control surface</h3>
                 <p>
-                  This is the private layer of the site. It loads workspace content after login and
+                  This is the private layer of the site. It loads module content after login and
                   keeps the public page clean.
                 </p>
                 <div className="workspace-summary">
                   <div className="status-chip">
                     <span className="dot dot-on" />
-                    <span>Signed in session active</span>
+                    <span>Signed-in session active</span>
                   </div>
-                  <p className="auth-note">Your account is now dropped straight into the private workspace.</p>
+                  <p className="auth-note">Your account opens straight into the private workspace.</p>
                 </div>
                 <div className="dashboard-actions">
                   <a className="button primary" href="#services">
