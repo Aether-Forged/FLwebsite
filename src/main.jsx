@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ChevronRight,
+  CircleGauge,
   Eye,
   EyeOff,
   LogOut,
@@ -18,14 +19,14 @@ import './styles.css';
 const defaultWorkspaceCards = [
   {
     badge: 'Overview',
-    title: 'Private workspace',
-    body: 'This is the signed-in control surface for Forced Logic. It stays behind login.',
-    note: 'Use this section as the home base for the site after authentication.',
+    title: 'Session map',
+    body: 'A private launch surface for the current site session and the next places to go.',
+    note: 'Use this as the home base after authentication.',
   },
   {
     badge: 'Modules',
     title: 'Project areas',
-    body: 'Drop in workspace modules for product pages, tools, notes, or build areas.',
+    body: 'Drop in product pages, tools, notes, or build zones as selectable modules.',
     note: 'Each card can become a live module as the site grows.',
   },
   {
@@ -50,6 +51,7 @@ function App() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [workspaceStatus, setWorkspaceStatus] = useState('Workspace table not loaded yet.');
+  const [activeModuleId, setActiveModuleId] = useState(defaultWorkspaceCards[0].title);
 
   const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
 
@@ -78,6 +80,7 @@ function App() {
       if (event === 'SIGNED_OUT') {
         setWorkspaceCards(defaultWorkspaceCards);
         setWorkspaceStatus('Signed out.');
+        setActiveModuleId(defaultWorkspaceCards[0].title);
       }
     });
 
@@ -178,6 +181,16 @@ function App() {
 
     return () => window.clearTimeout(timeout);
   }, [session]);
+
+  useEffect(() => {
+    if (!workspaceCards.length) return;
+    const currentModule = workspaceCards.find(
+      (card) => card.title === activeModuleId || card.badge === activeModuleId,
+    );
+    if (!currentModule) {
+      setActiveModuleId(workspaceCards[0].title);
+    }
+  }, [workspaceCards, activeModuleId]);
 
   return (
     <div className="page-shell">
@@ -350,39 +363,100 @@ function App() {
               <p className="section-kicker">Workspace</p>
               <h2>Private module workspace.</h2>
             </div>
-            <div className="dashboard-grid">
-              <article className="dashboard-card dashboard-primary">
-                <p className="panel-label">Live Entry</p>
-                <h3>Forced Logic control surface</h3>
-                <p>
-                  This is the private layer of the site. It loads module content after login and
-                  keeps the public page clean.
-                </p>
-                <div className="workspace-summary">
-                  <div className="status-chip">
-                    <span className="dot dot-on" />
-                    <span>Signed-in session active</span>
+            <div className="module-workspace">
+              <aside className="module-rail">
+                <article className="dashboard-card dashboard-primary">
+                  <p className="panel-label">Live Entry</p>
+                  <h3>Forced Logic control surface</h3>
+                  <p>
+                    This is the private layer of the site. It loads module content after login and
+                    keeps the public page clean.
+                  </p>
+                  <div className="workspace-summary">
+                    <div className="status-chip">
+                      <span className="dot dot-on" />
+                      <span>Signed-in session active</span>
+                    </div>
+                    <p className="auth-note">Your account opens straight into the private workspace.</p>
                   </div>
-                  <p className="auth-note">Your account opens straight into the private workspace.</p>
-                </div>
-                <div className="dashboard-actions">
-                  <a className="button primary" href="#services">
-                    View services
-                  </a>
-                  <a className="button secondary" href="#contact">
-                    Contact
-                  </a>
-                </div>
-              </article>
-
-              {workspaceCards.map((card) => (
-                <article className="dashboard-card" key={`${card.badge}-${card.title}`}>
-                  <span className="dashboard-chip">{card.badge}</span>
-                  <h4>{card.title}</h4>
-                  <p>{card.body}</p>
-                  <small>{card.note}</small>
+                  <div className="dashboard-actions">
+                    <a className="button primary" href="#services">
+                      View services
+                    </a>
+                    <a className="button secondary" href="#contact">
+                      Contact
+                    </a>
+                  </div>
                 </article>
-              ))}
+
+                <div className="module-list">
+                  {workspaceCards.map((card, index) => {
+                    const isActive = card.title === activeModuleId || card.badge === activeModuleId;
+                    return (
+                      <button
+                        className={`module-tile ${isActive ? 'is-active' : ''}`}
+                        type="button"
+                        key={`${card.badge}-${card.title}`}
+                        onClick={() => setActiveModuleId(card.title)}
+                      >
+                        <span className="module-index">{String(index + 1).padStart(2, '0')}</span>
+                        <div>
+                          <span className="dashboard-chip">{card.badge}</span>
+                          <h4>{card.title}</h4>
+                        </div>
+                        <p>{card.note}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </aside>
+
+              <article className="module-detail dashboard-card">
+                {(() => {
+                  const activeModule =
+                    workspaceCards.find(
+                      (card) => card.title === activeModuleId || card.badge === activeModuleId,
+                    ) ?? workspaceCards[0];
+
+                  return (
+                    <>
+                      <p className="panel-label">Active module</p>
+                      <h3>
+                        <CircleGauge size={20} />
+                        {activeModule.title}
+                      </h3>
+                      <p>{activeModule.body}</p>
+                      <small>{activeModule.note}</small>
+
+                      <div className="module-detail-grid">
+                        <div>
+                          <span>Badge</span>
+                          <strong>{activeModule.badge}</strong>
+                        </div>
+                        <div>
+                          <span>Status</span>
+                          <strong>{session ? 'Authenticated' : 'Locked'}</strong>
+                        </div>
+                        <div>
+                          <span>Source</span>
+                          <strong>Supabase</strong>
+                        </div>
+                        <div>
+                          <span>Mode</span>
+                          <strong>Live workspace</strong>
+                        </div>
+                      </div>
+
+                      <div className="module-detail-note">
+                        <p>
+                          This module panel is selectable, so the workspace behaves like a real
+                          control surface instead of a static card wall.
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </article>
             </div>
             <p className="auth-message">{workspaceStatus}</p>
           </section>
