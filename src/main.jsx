@@ -2,10 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ChevronRight,
-  CirclePlus,
   Eye,
   EyeOff,
-  KeyRound,
   LogOut,
   Mail,
   MonitorSmartphone,
@@ -44,36 +42,14 @@ const defaultWorkspaceCards = [
   },
 ];
 
-const defaultAdminForm = {
-  badge: '',
-  title: '',
-  body: '',
-  note: '',
-  order_index: '0',
-  is_active: true,
-};
-
-const defaultAccessForm = {
-  email: '',
-  display_name: '',
-  can_admin: false,
-};
-
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [accessLoading, setAccessLoading] = useState(false);
-  const [hasAccess, setHasAccess] = useState(false);
-  const [canAdmin, setCanAdmin] = useState(false);
   const [workspaceCards, setWorkspaceCards] = useState(defaultWorkspaceCards);
-  const [approvedUsers, setApprovedUsers] = useState([]);
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [workspaceStatus, setWorkspaceStatus] = useState('Workspace table not loaded yet.');
-  const [workspaceActionStatus, setWorkspaceActionStatus] = useState('');
-  const [adminForm, setAdminForm] = useState(defaultAdminForm);
-  const [accessForm, setAccessForm] = useState(defaultAccessForm);
 
   const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
 
@@ -100,12 +76,8 @@ function App() {
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession ?? null);
       if (event === 'SIGNED_OUT') {
-        setHasAccess(false);
-        setCanAdmin(false);
         setWorkspaceCards(defaultWorkspaceCards);
-        setApprovedUsers([]);
         setWorkspaceStatus('Signed out.');
-        setWorkspaceActionStatus('');
       }
     });
 
@@ -121,65 +93,14 @@ function App() {
     async function loadWorkspace() {
       if (!supabase || !session?.user?.email) return;
 
-      setAccessLoading(true);
-      setWorkspaceStatus('Checking access...');
-      setWorkspaceActionStatus('');
-
       try {
-        const email = session.user.email.toLowerCase();
-        const [{ data: approvalRows, error: approvalError }, { data: cards, error: cardsError }] =
-          await Promise.all([
-            supabase
-              .from('approved_users')
-              .select('email, display_name, can_admin, active')
-              .eq('email', email)
-              .maybeSingle(),
-            supabase
-              .from('workspace_cards')
-              .select('id, title, body, note, badge, order_index, is_active')
-              .eq('is_active', true)
-              .order('order_index', { ascending: true }),
-          ]);
+        const { data: cards, error: cardsError } = await supabase
+          .from('workspace_cards')
+          .select('id, title, body, note, badge, order_index, is_active')
+          .eq('is_active', true)
+          .order('order_index', { ascending: true });
 
         if (cancelled) return;
-
-        if (approvalError) {
-          setHasAccess(false);
-          setWorkspaceStatus(`Approval check unavailable: ${approvalError.message}`);
-          setMessage('Login succeeded, but workspace approval could not be confirmed.');
-          return;
-        }
-
-        if (!approvalRows) {
-          setHasAccess(false);
-          setCanAdmin(false);
-          setWorkspaceStatus('Access denied for this email.');
-          setMessage('This account is not on the approved access list.');
-          await supabase.auth.signOut();
-          return;
-        }
-
-        setHasAccess(true);
-        setCanAdmin(Boolean(approvalRows.can_admin));
-        setWorkspaceStatus(
-          approvalRows.display_name
-            ? `Approved for ${approvalRows.display_name}.`
-            : 'Approved user detected.',
-        );
-
-        if (approvalRows.can_admin) {
-          const { data: accessRows, error: accessError } = await supabase
-            .from('approved_users')
-            .select('email, display_name, can_admin, active, created_at')
-            .order('email', { ascending: true });
-
-          if (accessError) {
-            setApprovedUsers([]);
-            setWorkspaceStatus(`Approved user table unavailable: ${accessError.message}`);
-          } else {
-            setApprovedUsers(accessRows ?? []);
-          }
-        }
 
         if (cardsError) {
           setWorkspaceCards(defaultWorkspaceCards);
@@ -192,22 +113,15 @@ function App() {
         }
       } catch (error) {
         if (!cancelled) {
-          setHasAccess(false);
-          setCanAdmin(false);
           setWorkspaceCards(defaultWorkspaceCards);
           setWorkspaceStatus(`Workspace load failed: ${error?.message || 'Unknown error'}`);
-          setMessage('The page stayed alive, but workspace loading hit a problem.');
         }
       }
-
-      setAccessLoading(false);
     }
 
     if (session) {
       loadWorkspace();
     } else {
-      setHasAccess(false);
-      setAccessLoading(false);
       setWorkspaceCards(defaultWorkspaceCards);
       setWorkspaceStatus('Login required.');
     }
@@ -255,71 +169,15 @@ function App() {
     setMessage('Signed out.');
   }
 
-  async function handleAddWorkspaceCard(event) {
-    event.preventDefault();
-    setWorkspaceActionStatus('');
+  useEffect(() => {
+    if (!session) return undefined;
 
-    if (!supabase || !canAdmin) {
-      setWorkspaceActionStatus('Admin access is required to add workspace cards.');
-      return;
-    }
+    const timeout = window.setTimeout(() => {
+      document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
 
-    const payload = {
-      badge: adminForm.badge.trim(),
-      title: adminForm.title.trim(),
-      body: adminForm.body.trim(),
-      note: adminForm.note.trim(),
-      order_index: Number(adminForm.order_index) || 0,
-      is_active: Boolean(adminForm.is_active),
-    };
-
-    if (!payload.badge || !payload.title || !payload.body) {
-      setWorkspaceActionStatus('Badge, title, and body are required.');
-      return;
-    }
-
-    const { error } = await supabase.from('workspace_cards').insert(payload);
-
-    if (error) {
-      setWorkspaceActionStatus(error.message);
-      return;
-    }
-
-    setWorkspaceActionStatus('Workspace card added.');
-    setAdminForm(defaultAdminForm);
-  }
-
-  async function handleAddApprovedUser(event) {
-    event.preventDefault();
-    setWorkspaceActionStatus('');
-
-    if (!supabase || !canAdmin) {
-      setWorkspaceActionStatus('Admin access is required to add approved users.');
-      return;
-    }
-
-    const payload = {
-      email: accessForm.email.trim().toLowerCase(),
-      display_name: accessForm.display_name.trim(),
-      can_admin: Boolean(accessForm.can_admin),
-      active: true,
-    };
-
-    if (!payload.email) {
-      setWorkspaceActionStatus('Email is required.');
-      return;
-    }
-
-    const { error } = await supabase.from('approved_users').upsert(payload);
-
-    if (error) {
-      setWorkspaceActionStatus(error.message);
-      return;
-    }
-
-    setWorkspaceActionStatus('Approved user saved.');
-    setAccessForm(defaultAccessForm);
-  }
+    return () => window.clearTimeout(timeout);
+  }, [session]);
 
   return (
     <div className="page-shell">
@@ -479,9 +337,7 @@ function App() {
                 Sign in
               </button>
 
-              <p className="auth-note">
-                This site uses approved accounts only. If your email is not on the access list, the session will be closed.
-              </p>
+              <p className="auth-note">This site uses your authenticated Supabase account only.</p>
             </form>
           )}
 
@@ -492,26 +348,22 @@ function App() {
           <section id="workspace" className="section-block dashboard-block">
             <div className="section-heading">
               <p className="section-kicker">Workspace</p>
-              <h2>Post-login control panel.</h2>
+              <h2>Post-login workspace.</h2>
             </div>
             <div className="dashboard-grid">
               <article className="dashboard-card dashboard-primary">
                 <p className="panel-label">Live Entry</p>
-                <h3>Forced Logic control panel</h3>
+                <h3>Forced Logic workspace</h3>
                 <p>
-                  This is the first authenticated layer of the site. It now pulls private workspace
-                  content from Supabase and keeps the public page clean.
+                  This is the private layer of the site. It loads workspace content after login and
+                  keeps the public page clean.
                 </p>
                 <div className="workspace-summary">
                   <div className="status-chip">
-                    <span className={canAdmin ? 'dot dot-on' : 'dot dot-off'} />
-                    <span>{canAdmin ? 'Admin access enabled' : 'Approved user only'}</span>
+                    <span className="dot dot-on" />
+                    <span>Signed in session active</span>
                   </div>
-                  <p className="auth-note">
-                    {canAdmin
-                      ? 'This account can manage approved users and workspace cards.'
-                      : 'This account can read the approved workspace only. Admin panel stays hidden until can_admin is true.'}
-                  </p>
+                  <p className="auth-note">Your account is now dropped straight into the private workspace.</p>
                 </div>
                 <div className="dashboard-actions">
                   <a className="button primary" href="#services">
@@ -532,163 +384,7 @@ function App() {
                 </article>
               ))}
             </div>
-            <p className="auth-message">{accessLoading ? 'Checking workspace access...' : workspaceStatus}</p>
-          </section>
-        ) : null}
-
-        {session && hasAccess && canAdmin ? (
-          <section id="admin" className="section-block dashboard-block">
-            <div className="section-heading">
-              <p className="section-kicker">Admin</p>
-              <h2>Private control panel.</h2>
-            </div>
-            <div className="dashboard-grid">
-              <article className="dashboard-card dashboard-primary">
-                <p className="panel-label">Admin tools</p>
-                <h3>Access control and workspace content.</h3>
-                <p>
-                  This panel edits the Supabase-backed approval list and workspace cards directly from the browser.
-                  Only approved admin accounts can use these tools.
-                </p>
-                <div className="dashboard-actions">
-                  <a className="button secondary" href="#workspace">
-                    Review workspace
-                  </a>
-                  <a className="button secondary" href="#contact">
-                    Contact
-                  </a>
-                </div>
-              </article>
-
-              <article className="dashboard-card">
-                <span className="dashboard-chip">Workspace cards</span>
-                <form className="admin-form" onSubmit={handleAddWorkspaceCard}>
-                  <label>
-                    <span>Badge</span>
-                    <input
-                      value={adminForm.badge}
-                      onChange={(event) => setAdminForm((current) => ({ ...current, badge: event.target.value }))}
-                      placeholder="Live"
-                    />
-                  </label>
-                  <label>
-                    <span>Title</span>
-                    <input
-                      value={adminForm.title}
-                      onChange={(event) => setAdminForm((current) => ({ ...current, title: event.target.value }))}
-                      placeholder="Private modules"
-                    />
-                  </label>
-                  <label>
-                    <span>Body</span>
-                    <textarea
-                      rows="3"
-                      value={adminForm.body}
-                      onChange={(event) => setAdminForm((current) => ({ ...current, body: event.target.value }))}
-                      placeholder="Add the private module text."
-                    />
-                  </label>
-                  <label>
-                    <span>Note</span>
-                    <textarea
-                      rows="2"
-                      value={adminForm.note}
-                      onChange={(event) => setAdminForm((current) => ({ ...current, note: event.target.value }))}
-                      placeholder="Short supporting note."
-                    />
-                  </label>
-                  <div className="admin-inline">
-                    <label>
-                      <span>Order</span>
-                      <input
-                        type="number"
-                        value={adminForm.order_index}
-                        onChange={(event) =>
-                          setAdminForm((current) => ({ ...current, order_index: event.target.value }))
-                        }
-                        placeholder="0"
-                      />
-                    </label>
-                    <label className="admin-check">
-                      <input
-                        type="checkbox"
-                        checked={adminForm.is_active}
-                        onChange={(event) =>
-                          setAdminForm((current) => ({ ...current, is_active: event.target.checked }))
-                        }
-                      />
-                      <span>Active</span>
-                    </label>
-                  </div>
-                  <button className="button primary" type="submit">
-                    <CirclePlus size={14} />
-                    Add workspace card
-                  </button>
-                </form>
-              </article>
-
-              <article className="dashboard-card">
-                <span className="dashboard-chip">Approved users</span>
-                <form className="admin-form" onSubmit={handleAddApprovedUser}>
-                  <label>
-                    <span>Email</span>
-                    <input
-                      type="email"
-                      value={accessForm.email}
-                      onChange={(event) => setAccessForm((current) => ({ ...current, email: event.target.value }))}
-                      placeholder="name@example.com"
-                    />
-                  </label>
-                  <label>
-                    <span>Display name</span>
-                    <input
-                      value={accessForm.display_name}
-                      onChange={(event) =>
-                        setAccessForm((current) => ({ ...current, display_name: event.target.value }))
-                      }
-                      placeholder="Michael"
-                    />
-                  </label>
-                  <label className="admin-check">
-                    <input
-                      type="checkbox"
-                      checked={accessForm.can_admin}
-                      onChange={(event) =>
-                        setAccessForm((current) => ({ ...current, can_admin: event.target.checked }))
-                      }
-                    />
-                    <span>Admin access</span>
-                  </label>
-                  <button className="button primary" type="submit">
-                    <KeyRound size={14} />
-                    Save approved user
-                  </button>
-                </form>
-              </article>
-
-              <article className="dashboard-card">
-                <span className="dashboard-chip">Access list</span>
-                <div className="workspace-list">
-                  {approvedUsers.length ? (
-                    approvedUsers.map((user) => (
-                      <div className="workspace-list-item" key={user.email}>
-                        <div>
-                          <strong>{user.display_name || user.email}</strong>
-                          <p>{user.email}</p>
-                        </div>
-                        <div className="workspace-flags">
-                          <span>{user.can_admin ? 'Admin' : 'Approved'}</span>
-                          <span>{user.active ? 'Active' : 'Inactive'}</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="auth-note">No approved users loaded yet.</p>
-                  )}
-                </div>
-              </article>
-            </div>
-            {workspaceActionStatus ? <p className="auth-message">{workspaceActionStatus}</p> : null}
+            <p className="auth-message">{workspaceStatus}</p>
           </section>
         ) : null}
 
