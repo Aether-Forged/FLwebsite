@@ -13,6 +13,7 @@ alter table public.approved_users
 
 alter table public.approved_users enable row level security;
 
+drop policy if exists "Approved users can view their own approval" on public.approved_users;
 create policy "Approved users can view their own approval"
 on public.approved_users
 for select
@@ -31,6 +32,7 @@ using (
   )
 );
 
+drop policy if exists "Approved admins can add approved users" on public.approved_users;
 create policy "Approved admins can add approved users"
 on public.approved_users
 for insert
@@ -45,6 +47,7 @@ with check (
   )
 );
 
+drop policy if exists "Approved admins can update approved users" on public.approved_users;
 create policy "Approved admins can update approved users"
 on public.approved_users
 for update
@@ -68,6 +71,7 @@ with check (
   )
 );
 
+drop policy if exists "Approved admins can delete approved users" on public.approved_users;
 create policy "Approved admins can delete approved users"
 on public.approved_users
 for delete
@@ -104,6 +108,7 @@ alter table public.workspace_cards
 
 alter table public.workspace_cards enable row level security;
 
+drop policy if exists "Approved users can read active workspace cards" on public.workspace_cards;
 create policy "Approved users can read active workspace cards"
 on public.workspace_cards
 for select
@@ -118,6 +123,7 @@ using (
   )
 );
 
+drop policy if exists "Approved admins can add cards" on public.workspace_cards;
 create policy "Approved admins can add cards"
 on public.workspace_cards
 for insert
@@ -132,6 +138,7 @@ with check (
   )
 );
 
+drop policy if exists "Approved admins can update cards" on public.workspace_cards;
 create policy "Approved admins can update cards"
 on public.workspace_cards
 for update
@@ -155,6 +162,7 @@ with check (
   )
 );
 
+drop policy if exists "Approved admins can delete cards" on public.workspace_cards;
 create policy "Approved admins can delete cards"
 on public.workspace_cards
 for delete

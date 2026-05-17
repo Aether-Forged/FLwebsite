@@ -45,6 +45,7 @@ Set `can_admin = true` for the account that should control the private panel.
 
 If the tables already existed before this update, rerun the schema file so the
 `can_admin` column and the workspace-card defaults are added to the existing tables.
+The file is now safe to rerun because it drops and recreates the matching policies first.
 
 Example:
 
