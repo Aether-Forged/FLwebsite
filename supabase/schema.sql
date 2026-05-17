@@ -1,5 +1,23 @@
 create extension if not exists pgcrypto;
 
+create or replace function public.is_admin_user()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.approved_users
+    where active = true
+      and can_admin = true
+      and lower(email) = lower(auth.jwt() ->> 'email')
+  );
+$$;
+
+revoke all on function public.is_admin_user() from public;
+grant execute on function public.is_admin_user() to authenticated;
+
 create table if not exists public.approved_users (
   email text primary key,
   display_name text,
@@ -20,16 +38,7 @@ for select
 to authenticated
 using (
   active = true
-  and (
-    lower(email) = lower(auth.jwt() ->> 'email')
-    or exists (
-      select 1
-      from public.approved_users admin
-      where lower(admin.email) = lower(auth.jwt() ->> 'email')
-        and admin.active = true
-        and admin.can_admin = true
-    )
-  )
+  and lower(email) = lower(auth.jwt() ->> 'email')
 );
 
 drop policy if exists "Approved admins can add approved users" on public.approved_users;
@@ -38,13 +47,7 @@ on public.approved_users
 for insert
 to authenticated
 with check (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 );
 
 drop policy if exists "Approved admins can update approved users" on public.approved_users;
@@ -53,22 +56,10 @@ on public.approved_users
 for update
 to authenticated
 using (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 )
 with check (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 );
 
 drop policy if exists "Approved admins can delete approved users" on public.approved_users;
@@ -77,13 +68,7 @@ on public.approved_users
 for delete
 to authenticated
 using (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 );
 
 create table if not exists public.workspace_cards (
@@ -129,13 +114,7 @@ on public.workspace_cards
 for insert
 to authenticated
 with check (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 );
 
 drop policy if exists "Approved admins can update cards" on public.workspace_cards;
@@ -144,22 +123,10 @@ on public.workspace_cards
 for update
 to authenticated
 using (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 )
 with check (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 );
 
 drop policy if exists "Approved admins can delete cards" on public.workspace_cards;
@@ -168,13 +135,7 @@ on public.workspace_cards
 for delete
 to authenticated
 using (
-  exists (
-    select 1
-    from public.approved_users admin
-    where lower(admin.email) = lower(auth.jwt() ->> 'email')
-      and admin.active = true
-      and admin.can_admin = true
-  )
+  public.is_admin_user()
 );
 
 insert into public.workspace_cards (badge, title, body, note, order_index, is_active)
