@@ -168,30 +168,31 @@ function App() {
           : 'Approved user detected.',
       );
 
-      const [{ data: accessRows, error: accessError }] = await Promise.all([
-        approvalRows.can_admin
-          ? supabase
-              .from('approved_users')
-              .select('email, display_name, can_admin, active, created_at')
-              .order('email', { ascending: true })
-          : Promise.resolve({ data: [], error: null }),
-        approvalRows.can_admin
-          ? Promise.resolve({ data: cards, error: cardsError })
-          : Promise.resolve({ data: cards, error: cardsError }),
-      ]);
+      const { data: cardRows, error: cardError } = await supabase
+        .from('workspace_cards')
+        .select('id, title, body, note, badge, order_index, is_active')
+        .eq('is_active', true)
+        .order('order_index', { ascending: true });
 
-      if (accessError) {
-        setApprovedUsers([]);
-        setWorkspaceStatus(`Approved user table unavailable: ${accessError.message}`);
-      } else if (approvalRows.can_admin) {
-        setApprovedUsers(accessRows ?? []);
+      if (approvalRows.can_admin) {
+        const { data: accessRows, error: accessError } = await supabase
+          .from('approved_users')
+          .select('email, display_name, can_admin, active, created_at')
+          .order('email', { ascending: true });
+
+        if (accessError) {
+          setApprovedUsers([]);
+          setWorkspaceStatus(`Approved user table unavailable: ${accessError.message}`);
+        } else {
+          setApprovedUsers(accessRows ?? []);
+        }
       }
 
-      if (cardsError) {
+      if (cardError) {
         setWorkspaceCards(defaultWorkspaceCards);
-        setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardsError.message}`);
-      } else if (cards?.length) {
-        setWorkspaceCards(cards);
+        setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardError.message}`);
+      } else if (cardRows?.length) {
+        setWorkspaceCards(cardRows);
       } else {
         setWorkspaceCards(defaultWorkspaceCards);
         setWorkspaceStatus('Workspace table is connected, but no cards have been added yet.');
