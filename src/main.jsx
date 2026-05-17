@@ -43,6 +43,54 @@ const defaultWorkspaceCards = [
   },
 ];
 
+const workspaceModuleMeta = {
+  'Session map': {
+    status: 'Navigation',
+    summary: 'Shows where the private area starts and what is currently active.',
+    actions: ['Review session state', 'Check live module', 'Return to top'],
+  },
+  'Project areas': {
+    status: 'Build zone',
+    summary: 'Holds the parts of the site that can expand into real tools and pages.',
+    actions: ['Plan a module', 'Open a tool area', 'Add new content'],
+  },
+  Deployment: {
+    status: 'Live',
+    summary: 'Tracks the build path that keeps the site online and current.',
+    actions: ['Check publish state', 'Confirm latest build', 'Inspect cache'],
+  },
+  'Supabase feed': {
+    status: 'Data source',
+    summary: 'Represents the private data layer that can feed the workspace cards.',
+    actions: ['Verify connection', 'Refresh cards', 'Review table'],
+  },
+};
+
+function enhanceWorkspaceCard(card, index) {
+  const meta = workspaceModuleMeta[card.title] ?? {};
+  return {
+    ...card,
+    status: meta.status ?? card.badge,
+    summary: meta.summary ?? card.body,
+    actions: meta.actions ?? [card.note],
+    index: String(index + 1).padStart(2, '0'),
+  };
+}
+
+function normalizeWorkspaceCard(card, index) {
+  const fallback = defaultWorkspaceCards[index] ?? defaultWorkspaceCards[0];
+  return {
+    badge: card?.badge || fallback.badge,
+    title: card?.title || fallback.title,
+    body: card?.body || fallback.body,
+    note: card?.note || fallback.note,
+    status: card?.status,
+    summary: card?.summary,
+    actions: card?.actions,
+    index: card?.index,
+  };
+}
+
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +102,10 @@ function App() {
   const [activeModuleId, setActiveModuleId] = useState(defaultWorkspaceCards[0].title);
 
   const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
+  const workspaceModules = useMemo(
+    () => workspaceCards.map((card, index) => enhanceWorkspaceCard(card, index)),
+    [workspaceCards],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -109,7 +161,8 @@ function App() {
           setWorkspaceCards(defaultWorkspaceCards);
           setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardsError.message}`);
         } else if (cards?.length) {
-          setWorkspaceCards(cards);
+          setWorkspaceCards(cards.map((card, index) => normalizeWorkspaceCard(card, index)));
+          setWorkspaceStatus(`Loaded ${cards.length} workspace card${cards.length === 1 ? '' : 's'} from Supabase.`);
         } else {
           setWorkspaceCards(defaultWorkspaceCards);
           setWorkspaceStatus('Workspace table is connected, but no cards have been added yet.');
@@ -183,14 +236,14 @@ function App() {
   }, [session]);
 
   useEffect(() => {
-    if (!workspaceCards.length) return;
-    const currentModule = workspaceCards.find(
+    if (!workspaceModules.length) return;
+    const currentModule = workspaceModules.find(
       (card) => card.title === activeModuleId || card.badge === activeModuleId,
     );
     if (!currentModule) {
-      setActiveModuleId(workspaceCards[0].title);
+      setActiveModuleId(workspaceModules[0].title);
     }
-  }, [workspaceCards, activeModuleId]);
+  }, [workspaceModules, activeModuleId]);
 
   return (
     <div className="page-shell">
@@ -390,7 +443,7 @@ function App() {
                 </article>
 
                 <div className="module-list">
-                  {workspaceCards.map((card, index) => {
+                  {workspaceModules.map((card) => {
                     const isActive = card.title === activeModuleId || card.badge === activeModuleId;
                     return (
                       <button
@@ -399,12 +452,12 @@ function App() {
                         key={`${card.badge}-${card.title}`}
                         onClick={() => setActiveModuleId(card.title)}
                       >
-                        <span className="module-index">{String(index + 1).padStart(2, '0')}</span>
+                        <span className="module-index">{card.index}</span>
                         <div>
                           <span className="dashboard-chip">{card.badge}</span>
                           <h4>{card.title}</h4>
                         </div>
-                        <p>{card.note}</p>
+                        <p>{card.summary}</p>
                       </button>
                     );
                   })}
@@ -414,9 +467,9 @@ function App() {
               <article className="module-detail dashboard-card">
                 {(() => {
                   const activeModule =
-                    workspaceCards.find(
+                    workspaceModules.find(
                       (card) => card.title === activeModuleId || card.badge === activeModuleId,
-                    ) ?? workspaceCards[0];
+                    ) ?? workspaceModules[0];
 
                   return (
                     <>
@@ -434,12 +487,12 @@ function App() {
                           <strong>{activeModule.badge}</strong>
                         </div>
                         <div>
-                          <span>Status</span>
-                          <strong>{session ? 'Authenticated' : 'Locked'}</strong>
+                          <span>State</span>
+                          <strong>{activeModule.status}</strong>
                         </div>
                         <div>
                           <span>Source</span>
-                          <strong>Supabase</strong>
+                          <strong>{supabaseStatus.ready ? 'Supabase / fallback' : 'Local fallback'}</strong>
                         </div>
                         <div>
                           <span>Mode</span>
@@ -449,9 +502,15 @@ function App() {
 
                       <div className="module-detail-note">
                         <p>
-                          This module panel is selectable, so the workspace behaves like a real
-                          control surface instead of a static card wall.
+                          {activeModule.summary}
                         </p>
+                      </div>
+                      <div className="module-action-list">
+                        {activeModule.actions.map((action) => (
+                          <span key={action} className="module-action-pill">
+                            {action}
+                          </span>
+                        ))}
                       </div>
                     </>
                   );
