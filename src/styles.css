@@ -246,6 +246,118 @@ a { color: inherit; text-decoration: none; }
   margin-top: 16px;
 }
 
+.admin-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-form span {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  color: var(--accent-2);
+}
+
+.admin-form input,
+.admin-form textarea {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(3, 7, 15, 0.8);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.admin-form textarea {
+  min-height: 92px;
+  padding-top: 14px;
+  resize: vertical;
+}
+
+.admin-form input:focus,
+.admin-form textarea:focus {
+  border-color: rgba(25, 211, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(25, 211, 255, 0.12);
+}
+
+.admin-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-check {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 2px;
+}
+
+.admin-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.admin-check span {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-size: 0.88rem;
+}
+
+.workspace-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.workspace-list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.workspace-list-item strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.workspace-list-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.workspace-flags {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  align-content: start;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  color: var(--accent-2);
+}
+
 .workspace-summary {
   display: grid;
   gap: 12px;
@@ -275,5 +387,17 @@ a { color: inherit; text-decoration: none; }
 
   .dashboard-primary {
     grid-row: auto;
+  }
+
+  .admin-inline {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-list-item {
+    flex-direction: column;
+  }
+
+  .workspace-flags {
+    justify-items: start;
   }
 }

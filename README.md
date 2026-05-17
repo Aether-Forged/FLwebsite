@@ -41,13 +41,16 @@ Those secrets are used at build time so the deployed site can talk to Supabase.
 
 Apply [`supabase/schema.sql`](./supabase/schema.sql) in the Supabase SQL editor.
 Then add your approved login email to `public.approved_users`.
+Set `can_admin = true` for the account that should control the private panel.
 
 Example:
 
 ```sql
-insert into public.approved_users (email, display_name)
-values ('you@example.com', 'Your Name');
+insert into public.approved_users (email, display_name, can_admin)
+values ('you@example.com', 'Your Name', true);
 ```
+
+The private admin panel can add workspace cards and approved users directly from the browser once that account is marked as admin.
 
 ## GitHub
 
