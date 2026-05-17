@@ -39,6 +39,16 @@ For GitHub Pages builds, add the same values as repository secrets named:
 
 Those secrets are used at build time so the deployed site can talk to Supabase.
 
+Apply [`supabase/schema.sql`](./supabase/schema.sql) in the Supabase SQL editor.
+Then add your approved login email to `public.approved_users`.
+
+Example:
+
+```sql
+insert into public.approved_users (email, display_name)
+values ('you@example.com', 'Your Name');
+```
+
 ## GitHub
 
 This folder now has its own git repository.

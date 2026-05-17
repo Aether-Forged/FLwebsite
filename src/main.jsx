@@ -15,13 +15,43 @@ import {
 import { getSupabaseStatus, supabase } from './lib/supabaseClient';
 import './styles.css';
 
+const defaultWorkspaceCards = [
+  {
+    badge: 'Ready',
+    title: 'Live workspace',
+    body: 'This private layer is the first authenticated surface for Forced Logic.',
+    note: 'Swap these defaults out for rows in Supabase when you are ready.',
+  },
+  {
+    badge: 'Next',
+    title: 'Private modules',
+    body: 'Add admin tools, content blocks, and project areas here behind login.',
+    note: 'This section is now wired to accept rows from the database.',
+  },
+  {
+    badge: 'Status',
+    title: 'Deployment',
+    body: 'GitHub Pages serves the app and the workflow is already connected.',
+    note: 'Future pushes will update the live URL automatically.',
+  },
+  {
+    badge: 'Control',
+    title: 'Supabase data',
+    body: 'Workspace cards and approved users both live in Supabase tables.',
+    note: 'Use the schema file to create the tables in the project.',
+  },
+];
+
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [workspaceCards, setWorkspaceCards] = useState(defaultWorkspaceCards);
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState('sign-in');
+  const [workspaceStatus, setWorkspaceStatus] = useState('Workspace table not loaded yet.');
 
   const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
 
@@ -47,7 +77,11 @@ function App() {
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession ?? null);
-      if (event === 'SIGNED_OUT') setMessage('Signed out.');
+      if (event === 'SIGNED_OUT') {
+        setHasAccess(false);
+        setWorkspaceCards(defaultWorkspaceCards);
+        setWorkspaceStatus('Signed out.');
+      }
     });
 
     return () => {
@@ -55,6 +89,83 @@ function App() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      if (!supabase || !session?.user?.email) return;
+
+      setAccessLoading(true);
+      setWorkspaceStatus('Checking access...');
+
+      const email = session.user.email.toLowerCase();
+      const [{ data: approvalRows, error: approvalError }, { data: cards, error: cardsError }] =
+        await Promise.all([
+          supabase
+            .from('approved_users')
+            .select('email, display_name, active')
+            .eq('email', email)
+            .maybeSingle(),
+          supabase
+            .from('workspace_cards')
+            .select('id, title, body, note, badge, order_index, is_active')
+            .eq('is_active', true)
+            .order('order_index', { ascending: true }),
+        ]);
+
+      if (cancelled) return;
+
+      if (approvalError) {
+        setHasAccess(false);
+        setWorkspaceStatus(`Approval check unavailable: ${approvalError.message}`);
+        setMessage('Login succeeded, but workspace approval could not be confirmed.');
+        setAccessLoading(false);
+        return;
+      }
+
+      if (!approvalRows) {
+        setHasAccess(false);
+        setWorkspaceStatus('Access denied for this email.');
+        setMessage('This account is not on the approved access list.');
+        await supabase.auth.signOut();
+        setAccessLoading(false);
+        return;
+      }
+
+      setHasAccess(true);
+      setWorkspaceStatus(
+        approvalRows.display_name
+          ? `Approved for ${approvalRows.display_name}.`
+          : 'Approved user detected.',
+      );
+
+      if (cardsError) {
+        setWorkspaceCards(defaultWorkspaceCards);
+        setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardsError.message}`);
+      } else if (cards?.length) {
+        setWorkspaceCards(cards);
+      } else {
+        setWorkspaceCards(defaultWorkspaceCards);
+        setWorkspaceStatus('Workspace table is connected, but no cards have been added yet.');
+      }
+
+      setAccessLoading(false);
+    }
+
+    if (session) {
+      loadWorkspace();
+    } else {
+      setHasAccess(false);
+      setAccessLoading(false);
+      setWorkspaceCards(defaultWorkspaceCards);
+      setWorkspaceStatus('Login required.');
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -65,7 +176,7 @@ function App() {
       return;
     }
 
-    const email = form.email.trim();
+    const email = form.email.trim().toLowerCase();
     const password = form.password;
 
     if (!email || !password) {
@@ -73,20 +184,14 @@ function App() {
       return;
     }
 
-    const action = mode === 'sign-up'
-      ? supabase.auth.signUp({ email, password })
-      : supabase.auth.signInWithPassword({ email, password });
-
-    const { error } = await action;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setMessage(error.message);
       return;
     }
 
-    setMessage(mode === 'sign-up'
-      ? 'Account request sent. Check your email if confirmation is enabled.'
-      : 'Signed in successfully.');
+    setMessage('Signed in successfully.');
     setForm((current) => ({ ...current, password: '' }));
   }
 
@@ -117,7 +222,7 @@ function App() {
         </div>
         <nav className="nav">
           <a href="#auth">Login</a>
-          <a href="#services">Services</a>
+          <a href="#workspace">Workspace</a>
           <a href="#contact">Contact</a>
         </nav>
       </header>
@@ -137,8 +242,8 @@ function App() {
                   Access the site
                   <ChevronRight size={14} />
                 </a>
-                <a className="button secondary" href="#services">
-                  Explore solutions
+                <a className="button secondary" href="#workspace">
+                  View workspace
                 </a>
               </div>
             </div>
@@ -213,7 +318,7 @@ function App() {
                 <p className="auth-label">Active session</p>
                 <h3>{session.user.email}</h3>
                 <p className="approach-text">
-                  You are signed in to the Forced Logic workspace. This page can now be used as a controlled entry point.
+                  You are signed in to the Forced Logic workspace. This page now gates the private area.
                 </p>
               </div>
               <button className="button primary" type="button" onClick={handleSignOut}>
@@ -238,7 +343,7 @@ function App() {
                 <div className="password-field">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
+                    autoComplete="current-password"
                     value={form.password}
                     onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
                     placeholder="Your password"
@@ -254,23 +359,12 @@ function App() {
                 </div>
               </label>
 
-              <div className="auth-actions">
-                <button className="button primary" type="submit">
-                  {mode === 'sign-up' ? 'Create account' : 'Sign in'}
-                </button>
-                <button
-                  className="button secondary"
-                  type="button"
-                  onClick={() => setMode((current) => (current === 'sign-up' ? 'sign-in' : 'sign-up'))}
-                >
-                  {mode === 'sign-up' ? 'Switch to sign in' : 'Switch to sign up'}
-                </button>
-              </div>
+              <button className="button primary" type="submit">
+                Sign in
+              </button>
 
               <p className="auth-note">
-                {mode === 'sign-up'
-                  ? 'If email confirmation is enabled in Supabase, check your inbox after creating the account.'
-                  : 'Use your Supabase auth user to sign in here.'}
+                This site uses approved accounts only. Sign-up is disabled on purpose.
               </p>
             </form>
           )}
@@ -279,7 +373,7 @@ function App() {
         </section>
 
         {session ? (
-          <section className="section-block dashboard-block">
+          <section id="workspace" className="section-block dashboard-block">
             <div className="section-heading">
               <p className="section-kicker">Workspace</p>
               <h2>Post-login control panel.</h2>
@@ -289,8 +383,8 @@ function App() {
                 <p className="panel-label">Live Entry</p>
                 <h3>Forced Logic control panel</h3>
                 <p>
-                  This is the first authenticated layer of the site. It can grow into project tools,
-                  admin actions, Supabase-backed records, or private workspace modules.
+                  This is the first authenticated layer of the site. It now pulls private workspace
+                  content from Supabase and keeps the public page clean.
                 </p>
                 <div className="dashboard-actions">
                   <a className="button primary" href="#services">
@@ -301,25 +395,17 @@ function App() {
                   </a>
                 </div>
               </article>
-              <article className="dashboard-card">
-                <span className="dashboard-chip">Ready</span>
-                <h4>Auth status</h4>
-                <p>{session.user.email}</p>
-                <small>Signed in through Supabase session handling.</small>
-              </article>
-              <article className="dashboard-card">
-                <span className="dashboard-chip">Next</span>
-                <h4>Private modules</h4>
-                <p>Admin tools, content blocks, and project areas can be added behind login.</p>
-                <small>Keep the public page clean. Put the real tools here.</small>
-              </article>
-              <article className="dashboard-card">
-                <span className="dashboard-chip">Status</span>
-                <h4>Deployment</h4>
-                <p>GitHub Pages is serving the site and the workflow is already wired.</p>
-                <small>Future updates flow from the repo to the URL automatically.</small>
-              </article>
+
+              {workspaceCards.map((card) => (
+                <article className="dashboard-card" key={`${card.badge}-${card.title}`}>
+                  <span className="dashboard-chip">{card.badge}</span>
+                  <h4>{card.title}</h4>
+                  <p>{card.body}</p>
+                  <small>{card.note}</small>
+                </article>
+              ))}
             </div>
+            <p className="auth-message">{accessLoading ? 'Checking workspace access...' : workspaceStatus}</p>
           </section>
         ) : null}
 

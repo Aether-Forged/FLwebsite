@@ -245,6 +245,11 @@ a { color: inherit; text-decoration: none; }
   flex-wrap: wrap;
   margin-top: 16px;
 }
+
+.workspace-summary {
+  display: grid;
+  gap: 12px;
+}
 @media (max-width: 1080px) {
   .topbar { grid-template-columns: 120px 1fr; }
   .nav { grid-column: 1 / -1; justify-content: flex-start; }
