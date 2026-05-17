@@ -416,6 +416,16 @@ function App() {
               <p className="section-kicker">Workspace</p>
               <h2>Private module workspace.</h2>
             </div>
+            <div className="workspace-status-bar">
+              <div className="status-chip">
+                <span className="dot dot-on" />
+                <span>{workspaceStatus}</span>
+              </div>
+              <div className="workspace-status-meta">
+                <span>{workspaceModules.length} loaded modules</span>
+                <span>{supabaseStatus.ready ? 'Supabase connected' : 'Local fallback'}</span>
+              </div>
+            </div>
             <div className="module-workspace">
               <aside className="module-rail">
                 <article className="dashboard-card dashboard-primary">
@@ -441,7 +451,6 @@ function App() {
                     </a>
                   </div>
                 </article>
-
                 <div className="module-list">
                   {workspaceModules.map((card) => {
                     const isActive = card.title === activeModuleId || card.badge === activeModuleId;
@@ -517,7 +526,6 @@ function App() {
                 })()}
               </article>
             </div>
-            <p className="auth-message">{workspaceStatus}</p>
           </section>
         ) : null}
 
