@@ -85,6 +85,103 @@ a { color: inherit; text-decoration: none; }
 .split h2 { font-size: clamp(1.8rem, 3vw, 3rem); }
 .contact-block { margin-top: 24px; border-radius: 28px; padding: 28px 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .contact-block h2 { font-size: clamp(1.8rem, 3vw, 3rem); margin-bottom: 10px; }
+
+.auth-block {
+  display: grid;
+  gap: 20px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.auth-form span {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  color: var(--accent-2);
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(3, 7, 15, 0.8);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.auth-form input:focus {
+  border-color: rgba(25, 211, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(25, 211, 255, 0.12);
+}
+
+.password-field {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.password-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+.auth-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.auth-note,
+.auth-message {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.auth-session {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-session h3 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+}
+
+.auth-label {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--accent-2);
+  font-size: 0.72rem;
+}
 @media (max-width: 1080px) {
   .topbar { grid-template-columns: 120px 1fr; }
   .nav { grid-column: 1 / -1; justify-content: flex-start; }
@@ -98,4 +195,9 @@ a { color: inherit; text-decoration: none; }
   .hero-copy, .hero-panel, .section-block, .contact-block { padding: 20px; border-radius: 22px; }
   .signal-row, .panel-grid, .service-grid { grid-template-columns: 1fr; }
   .hero-copy h2 { max-width: none; }
+
+  .auth-session {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
