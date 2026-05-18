@@ -257,6 +257,16 @@ function App() {
   }, [session]);
 
   useEffect(() => {
+    if (!workspaceIntent) return undefined;
+
+    const timeout = window.setTimeout(() => {
+      document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+
+    return () => window.clearTimeout(timeout);
+  }, [workspaceIntent]);
+
+  useEffect(() => {
     if (!window.location.pathname.endsWith('/workspace')) return undefined;
 
     const timeout = window.setTimeout(() => {
