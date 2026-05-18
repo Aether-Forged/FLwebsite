@@ -100,6 +100,7 @@ function scrollWorkspaceIntoView() {
 }
 
 function App() {
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [workspaceCards, setWorkspaceCards] = useState(defaultWorkspaceCards);
@@ -113,12 +114,21 @@ function App() {
   const buildSha = import.meta.env.VITE_BUILD_SHA || 'local-dev';
 
   const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
+  const workspaceIntent = currentPath.endsWith('/workspace');
   const workspaceModules = useMemo(
     () => workspaceCards.map((card, index) => enhanceWorkspaceCard(card, index)),
     [workspaceCards],
   );
   const workspaceHref = `${import.meta.env.BASE_URL}workspace`;
-  const workspaceIntent = window.location.pathname.endsWith('/workspace');
+
+  useEffect(() => {
+    function handlePopState() {
+      setCurrentPath(window.location.pathname);
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -219,6 +229,7 @@ function App() {
     if (window.location.pathname !== workspaceHref) {
       window.history.pushState({}, '', workspaceHref);
     }
+    setCurrentPath(workspaceHref);
     scrollWorkspaceIntoView();
   }
 
@@ -308,86 +319,88 @@ function App() {
         <nav className="nav">
           <a href="#auth">Login</a>
           <a href={workspaceHref} onClick={openWorkspaceRoute}>Workspace</a>
-          <a href="#contact">Contact</a>
+          <a href={workspaceIntent ? `${import.meta.env.BASE_URL}#contact` : '#contact'}>Contact</a>
         </nav>
       </header>
 
       <main>
-        <section className="hero">
-          <div className="hero-copy">
-            <div>
-              <p className="section-kicker">Operational Software</p>
-              <h2>Built for live systems, not generic pages.</h2>
-              <p className="hero-text">
-                Forced Logic builds focused software systems that combine clean design,
-                responsive behavior, and practical performance for desktop and mobile workflows.
-              </p>
-              <div className="hero-actions">
-                <a className="button primary" href="#auth">
-                  Access the site
-                  <ChevronRight size={14} />
-                </a>
-                <a className="button secondary" href={workspaceHref} onClick={openWorkspaceRoute}>
-                  View workspace
-                </a>
+        {!workspaceIntent ? (
+          <section className="hero">
+            <div className="hero-copy">
+              <div>
+                <p className="section-kicker">Operational Software</p>
+                <h2>Built for live systems, not generic pages.</h2>
+                <p className="hero-text">
+                  Forced Logic builds focused software systems that combine clean design,
+                  responsive behavior, and practical performance for desktop and mobile workflows.
+                </p>
+                <div className="hero-actions">
+                  <a className="button primary" href="#auth">
+                    Access the site
+                    <ChevronRight size={14} />
+                  </a>
+                  <a className="button secondary" href={workspaceHref} onClick={openWorkspaceRoute}>
+                    View workspace
+                  </a>
+                </div>
+              </div>
+
+              <div className="signal-row">
+                <div>
+                  <span>Desktop</span>
+                  <strong>React / Vite</strong>
+                </div>
+                <div>
+                  <span>Mobile</span>
+                  <strong>Responsive builds</strong>
+                </div>
+                <div>
+                  <span>Systems</span>
+                  <strong>Operational tools</strong>
+                </div>
               </div>
             </div>
 
-            <div className="signal-row">
-              <div>
-                <span>Desktop</span>
-                <strong>React / Vite</strong>
+            <div className="hero-panel">
+              <div className="panel-card core-card">
+                <p className="panel-label">Current Focus</p>
+                <h3>Precision. Control. Reliability.</h3>
+                <p>
+                  Minimal overhead, clear structure, and software that stays organized under pressure.
+                </p>
+                <div className="status-chip">
+                  <span className={supabaseStatus.ready ? 'dot dot-on' : 'dot dot-off'} />
+                  <span>
+                    {supabaseStatus.ready ? 'Supabase wiring ready' : 'Supabase not configured yet'}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span>Mobile</span>
-                <strong>Responsive builds</strong>
-              </div>
-              <div>
-                <span>Systems</span>
-                <strong>Operational tools</strong>
-              </div>
-            </div>
-          </div>
 
-          <div className="hero-panel">
-            <div className="panel-card core-card">
-              <p className="panel-label">Current Focus</p>
-              <h3>Precision. Control. Reliability.</h3>
-              <p>
-                Minimal overhead, clear structure, and software that stays organized under pressure.
-              </p>
-              <div className="status-chip">
-                <span className={supabaseStatus.ready ? 'dot dot-on' : 'dot dot-off'} />
-                <span>
-                  {supabaseStatus.ready ? 'Supabase wiring ready' : 'Supabase not configured yet'}
-                </span>
+              <div className="panel-grid">
+                <article>
+                  <span>01</span>
+                  <h4><MonitorSmartphone size={16} /> Desktop applications</h4>
+                  <p>Interfaces that stay sharp, readable, and efficient.</p>
+                </article>
+                <article>
+                  <span>02</span>
+                  <h4><Workflow size={16} /> Mobile experiences</h4>
+                  <p>Layouts that adapt cleanly without losing structure.</p>
+                </article>
+                <article>
+                  <span>03</span>
+                  <h4><PanelTop size={16} /> Reactive workspaces</h4>
+                  <p>Modular systems built around live state and practical use.</p>
+                </article>
+                <article>
+                  <span>04</span>
+                  <h4><ShieldCheck size={16} /> Secure access</h4>
+                  <p>Login-first structure with session state and backend auth support.</p>
+                </article>
               </div>
             </div>
-
-            <div className="panel-grid">
-              <article>
-                <span>01</span>
-                <h4><MonitorSmartphone size={16} /> Desktop applications</h4>
-                <p>Interfaces that stay sharp, readable, and efficient.</p>
-              </article>
-              <article>
-                <span>02</span>
-                <h4><Workflow size={16} /> Mobile experiences</h4>
-                <p>Layouts that adapt cleanly without losing structure.</p>
-              </article>
-              <article>
-                <span>03</span>
-                <h4><PanelTop size={16} /> Reactive workspaces</h4>
-                <p>Modular systems built around live state and practical use.</p>
-              </article>
-              <article>
-                <span>04</span>
-                <h4><ShieldCheck size={16} /> Secure access</h4>
-                <p>Login-first structure with session state and backend auth support.</p>
-              </article>
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         <section id="auth" className="section-block auth-block">
           <div className="section-heading">
@@ -654,49 +667,53 @@ function App() {
             </div>
           </section>
 
-        <section id="services" className="section-block">
-          <div className="section-heading">
-            <p className="section-kicker">What we build</p>
-            <h2>Software systems with a clear operating purpose.</h2>
-          </div>
-          <div className="service-grid">
-            <article>
-              <h3>Product landing pages</h3>
-              <p>Fast, polished, and focused on getting the right message across.</p>
-            </article>
-            <article>
-              <h3>Operator dashboards</h3>
-              <p>Interfaces for live state, telemetry, and action without clutter.</p>
-            </article>
-            <article>
-              <h3>Internal tools</h3>
-              <p>Purpose-built systems for workflows that need structure and speed.</p>
-            </article>
-          </div>
-        </section>
+        {!workspaceIntent ? (
+          <>
+            <section id="services" className="section-block">
+              <div className="section-heading">
+                <p className="section-kicker">What we build</p>
+                <h2>Software systems with a clear operating purpose.</h2>
+              </div>
+              <div className="service-grid">
+                <article>
+                  <h3>Product landing pages</h3>
+                  <p>Fast, polished, and focused on getting the right message across.</p>
+                </article>
+                <article>
+                  <h3>Operator dashboards</h3>
+                  <p>Interfaces for live state, telemetry, and action without clutter.</p>
+                </article>
+                <article>
+                  <h3>Internal tools</h3>
+                  <p>Purpose-built systems for workflows that need structure and speed.</p>
+                </article>
+              </div>
+            </section>
 
-        <section id="approach" className="section-block split">
-          <div>
-            <p className="section-kicker">Approach</p>
-            <h2>Simple front end. Strong structure. No unnecessary noise.</h2>
-          </div>
-          <p className="approach-text">
-            The goal is to keep the UI clean enough to stay understandable and strong enough
-            to handle serious work. Everything should feel deliberate, not crowded.
-          </p>
-        </section>
+            <section id="approach" className="section-block split">
+              <div>
+                <p className="section-kicker">Approach</p>
+                <h2>Simple front end. Strong structure. No unnecessary noise.</h2>
+              </div>
+              <p className="approach-text">
+                The goal is to keep the UI clean enough to stay understandable and strong enough
+                to handle serious work. Everything should feel deliberate, not crowded.
+              </p>
+            </section>
 
-        <section id="contact" className="contact-block">
-          <div>
-            <p className="section-kicker">Start here</p>
-            <h2>Ready for the next build.</h2>
-            <p>One site, one system, one clean front door for the work.</p>
-          </div>
-          <a className="button primary" href="mailto:hello@forced-logic.com">
-            <Mail size={14} />
-            Contact Us
-          </a>
-        </section>
+            <section id="contact" className="contact-block">
+              <div>
+                <p className="section-kicker">Start here</p>
+                <h2>Ready for the next build.</h2>
+                <p>One site, one system, one clean front door for the work.</p>
+              </div>
+              <a className="button primary" href="mailto:hello@forced-logic.com">
+                <Mail size={14} />
+                Contact Us
+              </a>
+            </section>
+          </>
+        ) : null}
       </main>
     </div>
   );
