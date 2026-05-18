@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forged Logic Workspace</title>
+    <script>
+      (function () {
+        var base = '/FLwebsite/';
+        var path = window.location.pathname;
+        if (path.indexOf(base) !== 0) {
+          path = base;
+        }
+        var search = window.location.search || '';
+        var hash = window.location.hash || '';
+        var fallback = path + search + hash;
+        var url = new URL(base, window.location.origin);
+        url.searchParams.set('p', fallback);
+        window.location.replace(url.toString());
+      }());
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to the workspace...</p>
+  </body>
+</html>

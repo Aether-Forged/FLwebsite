@@ -111,6 +111,7 @@ function App() {
     () => workspaceCards.map((card, index) => enhanceWorkspaceCard(card, index)),
     [workspaceCards],
   );
+  const workspaceHref = `${import.meta.env.BASE_URL}workspace`;
 
   useEffect(() => {
     let isMounted = true;
@@ -255,6 +256,16 @@ function App() {
   }, [session]);
 
   useEffect(() => {
+    if (!window.location.pathname.endsWith('/workspace')) return undefined;
+
+    const timeout = window.setTimeout(() => {
+      document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
     if (!workspaceModules.length) return;
     const currentModule = workspaceModules.find(
       (card) => card.title === activeModuleId || card.badge === activeModuleId,
@@ -281,7 +292,7 @@ function App() {
         </div>
         <nav className="nav">
           <a href="#auth">Login</a>
-          <a href="#workspace">Workspace</a>
+          <a href={workspaceHref}>Workspace</a>
           <a href="#contact">Contact</a>
         </nav>
       </header>
@@ -297,11 +308,11 @@ function App() {
                 responsive behavior, and practical performance for desktop and mobile workflows.
               </p>
               <div className="hero-actions">
-                <a className="button primary" href="#auth">
+                <a className="button primary" href={workspaceHref}>
                   Access the site
                   <ChevronRight size={14} />
                 </a>
-                <a className="button secondary" href="#workspace">
+                <a className="button secondary" href={workspaceHref}>
                   View workspace
                 </a>
               </div>
@@ -666,6 +677,13 @@ class ErrorBoundary extends React.Component {
 
     return this.props.children;
   }
+}
+
+const fallbackPath = new URLSearchParams(window.location.search).get('p');
+
+if (fallbackPath) {
+  const targetUrl = new URL(fallbackPath, window.location.origin);
+  window.history.replaceState({}, '', `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
 }
 
 createRoot(document.getElementById('root')).render(
