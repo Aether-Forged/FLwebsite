@@ -13,35 +13,15 @@ import {
   Workflow,
 } from 'lucide-react';
 
-import { getSupabaseStatus, supabase } from './lib/supabaseClient';
+import {
+  getWorkspaceReadiness,
+  initializeWorkspaceRuntime,
+  refreshWorkspaceRuntime,
+  signIn,
+  signOut,
+  subscribeWorkspaceRuntime,
+} from './features/workspace/workspaceRuntime';
 import './styles.css';
-
-const defaultWorkspaceCards = [
-  {
-    badge: 'Overview',
-    title: 'Session map',
-    body: 'A private launch surface for the current site session and the next places to go.',
-    note: 'Use this as the home base after authentication.',
-  },
-  {
-    badge: 'Modules',
-    title: 'Project areas',
-    body: 'Drop in product pages, tools, notes, or build zones as selectable modules.',
-    note: 'Each card can become a live module as the site grows.',
-  },
-  {
-    badge: 'Status',
-    title: 'Deployment',
-    body: 'GitHub Pages serves the app and keeps the current build online.',
-    note: 'Pushes to main update the live URL automatically.',
-  },
-  {
-    badge: 'Data',
-    title: 'Supabase feed',
-    body: 'Workspace cards are loaded from Supabase when the table is ready.',
-    note: 'The page falls back to these defaults if the table is empty.',
-  },
-];
 
 const workspaceModuleMeta = {
   'Session map': {
@@ -79,20 +59,6 @@ function enhanceWorkspaceCard(card, index) {
   };
 }
 
-function normalizeWorkspaceCard(card, index) {
-  const fallback = defaultWorkspaceCards[index] ?? defaultWorkspaceCards[0];
-  return {
-    badge: card?.badge || fallback.badge,
-    title: card?.title || fallback.title,
-    body: card?.body || fallback.body,
-    note: card?.note || fallback.note,
-    status: card?.status,
-    summary: card?.summary,
-    actions: card?.actions,
-    index: card?.index,
-  };
-}
-
 function scrollWorkspaceIntoView() {
   window.requestAnimationFrame(() => {
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -101,25 +67,35 @@ function scrollWorkspaceIntoView() {
 
 function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [workspaceCards, setWorkspaceCards] = useState(defaultWorkspaceCards);
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [workspaceStatus, setWorkspaceStatus] = useState('Workspace table not loaded yet.');
-  const [workspaceActivity, setWorkspaceActivity] = useState('Choose a module action to update the workspace.');
-  const [activeModuleId, setActiveModuleId] = useState(defaultWorkspaceCards[0].title);
-  const [workspaceRefreshTick, setWorkspaceRefreshTick] = useState(0);
+  const [readiness, setReadiness] = useState(getWorkspaceReadiness());
+  const [activeModuleId, setActiveModuleId] = useState(
+    getWorkspaceReadiness().activeModuleId,
+  );
   const buildSha = import.meta.env.VITE_BUILD_SHA || 'local-dev';
-
-  const supabaseStatus = useMemo(() => getSupabaseStatus(), []);
+  const session = readiness.session ?? null;
+  const loading = readiness.status === 'authenticating';
+  const supabaseStatus = readiness.supabase;
+  const workspaceStatus = readiness.workspaceStatus;
+  const workspaceActivity = readiness.workspaceActivity;
   const workspaceIntent = currentPath.endsWith('/workspace');
   const workspaceModules = useMemo(
-    () => workspaceCards.map((card, index) => enhanceWorkspaceCard(card, index)),
-    [workspaceCards],
+    () => (readiness.workspaceCards ?? []).map((card, index) => enhanceWorkspaceCard(card, index)),
+    [readiness.workspaceCards],
   );
   const workspaceHref = `${import.meta.env.BASE_URL}workspace`;
+
+  useEffect(() => {
+    const unsubscribe = subscribeWorkspaceRuntime(setReadiness);
+    void initializeWorkspaceRuntime().then(setReadiness);
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    setActiveModuleId(readiness.activeModuleId);
+  }, [readiness.activeModuleId]);
 
   useEffect(() => {
     function handlePopState() {
@@ -129,100 +105,6 @@ function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function init() {
-      if (!supabase) {
-        if (isMounted) setLoading(false);
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      if (isMounted) {
-        setSession(data.session ?? null);
-        setLoading(false);
-      }
-    }
-
-    init();
-
-    if (!supabase) return undefined;
-
-    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      setSession(nextSession ?? null);
-      if (event === 'SIGNED_OUT') {
-        setWorkspaceCards(defaultWorkspaceCards);
-        setWorkspaceStatus('Signed out.');
-        setActiveModuleId(defaultWorkspaceCards[0].title);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      data.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!supabase || !session?.user?.email) return;
-
-      try {
-        const { data: cards, error: cardsError } = await supabase
-          .from('workspace_cards')
-          .select('id, title, body, note, badge, order_index, is_active')
-          .eq('is_active', true)
-          .order('order_index', { ascending: true });
-
-        if (cancelled) return;
-
-        if (cardsError) {
-          setWorkspaceCards(defaultWorkspaceCards);
-          setWorkspaceStatus(`Using fallback cards because the workspace table is not ready: ${cardsError.message}`);
-        } else if (cards?.length) {
-          setWorkspaceCards(cards.map((card, index) => normalizeWorkspaceCard(card, index)));
-          setWorkspaceStatus(`Loaded ${cards.length} workspace card${cards.length === 1 ? '' : 's'} from Supabase.`);
-        } else {
-          setWorkspaceCards(defaultWorkspaceCards);
-          setWorkspaceStatus('Workspace table is connected, but no cards have been added yet.');
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setWorkspaceCards(defaultWorkspaceCards);
-          setWorkspaceStatus(`Workspace load failed: ${error?.message || 'Unknown error'}`);
-        }
-      }
-    }
-
-    if (session) {
-      loadWorkspace();
-    } else {
-      setWorkspaceCards(defaultWorkspaceCards);
-      setWorkspaceStatus('Login required.');
-      setWorkspaceActivity('Login to load live workspace cards.');
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session, workspaceRefreshTick]);
-
-  function handleModuleAction(moduleTitle, action) {
-    setWorkspaceActivity(`${action} on ${moduleTitle}.`);
-    if (action.toLowerCase().includes('refresh')) {
-      setWorkspaceStatus(`Refreshing ${moduleTitle.toLowerCase()}...`);
-      setWorkspaceRefreshTick((current) => current + 1);
-    }
-  }
-
-  function openModule(moduleTitle) {
-    setActiveModuleId(moduleTitle);
-    setWorkspaceActivity(`Opened ${moduleTitle}.`);
-  }
 
   function openWorkspaceRoute(event) {
     event.preventDefault();
@@ -237,11 +119,6 @@ function App() {
     event.preventDefault();
     setMessage('');
 
-    if (!supabase) {
-      setMessage('Supabase is not configured yet. Add the .env values first.');
-      return;
-    }
-
     const email = form.email.trim().toLowerCase();
     const password = form.password;
 
@@ -250,10 +127,10 @@ function App() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const result = await signIn({ email, password });
 
-    if (error) {
-      setMessage(error.message);
+    if (result?.code) {
+      setMessage(result.message);
       return;
     }
 
@@ -262,10 +139,9 @@ function App() {
   }
 
   async function handleSignOut() {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      setMessage(error.message);
+    const result = await signOut();
+    if (result?.code) {
+      setMessage(result.message);
       return;
     }
     setMessage('Signed out.');
@@ -291,15 +167,17 @@ function App() {
     return () => window.clearTimeout(timeout);
   }, [workspaceIntent]);
 
-  useEffect(() => {
-    if (!workspaceModules.length) return;
-    const currentModule = workspaceModules.find(
-      (card) => card.title === activeModuleId || card.badge === activeModuleId,
-    );
-    if (!currentModule) {
-      setActiveModuleId(workspaceModules[0].title);
+  function handleModuleAction(moduleTitle, action) {
+    setMessage(`${action} on ${moduleTitle}.`);
+    if (action.toLowerCase().includes('refresh')) {
+      void refreshWorkspaceRuntime();
     }
-  }, [workspaceModules, activeModuleId]);
+  }
+
+  function openModule(moduleTitle) {
+    setActiveModuleId(moduleTitle);
+    setMessage(`Opened ${moduleTitle}.`);
+  }
 
   return (
     <div className="page-shell">
@@ -481,7 +359,7 @@ function App() {
               <div className="workspace-status-meta">
                 <span>{workspaceModules.length} loaded modules</span>
                 <span>{supabaseStatus.ready ? 'Supabase connected' : 'Local fallback'}</span>
-                <span>{session ? workspaceActivity : 'The workspace is waiting for sign-in.'}</span>
+                <span>{session ? message || workspaceActivity : 'The workspace is waiting for sign-in.'}</span>
               </div>
             </div>
             <div className="module-workspace">
