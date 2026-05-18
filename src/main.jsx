@@ -307,12 +307,12 @@ function App() {
       <div className="ambient ambient-right" />
 
       <header className="topbar">
-        <div className="brand-mark" aria-label="Forced Logic logo">
+        <div className="brand-mark" aria-label="Forged Logic logo">
           <span className="brand-monogram">FL</span>
         </div>
         <div className="brand-copy">
           <p className="eyebrow">Precision engineered software</p>
-          <h1>Forced Logic</h1>
+          <h1>Forged Logic</h1>
           <p className="tagline">Engineering the Future of Desktop and Mobile Experiences</p>
           <p className="subtag">Performance-Driven Development</p>
         </div>
@@ -331,7 +331,7 @@ function App() {
                 <p className="section-kicker">Operational Software</p>
                 <h2>Built for live systems, not generic pages.</h2>
                 <p className="hero-text">
-                  Forced Logic builds focused software systems that combine clean design,
+                  Forged Logic builds focused software systems that combine clean design,
                   responsive behavior, and practical performance for desktop and mobile workflows.
                 </p>
                 <div className="hero-actions">
@@ -416,7 +416,7 @@ function App() {
                 <p className="auth-label">Active session</p>
                 <h3>{session.user.email}</h3>
                 <p className="approach-text">
-                  You are signed in to the Forced Logic workspace. This page now gates the private area.
+                  You are signed in to the Forged Logic workspace. This page now gates the private area.
                 </p>
               </div>
               <button className="button primary" type="button" onClick={handleSignOut}>
@@ -488,7 +488,7 @@ function App() {
               <aside className="module-rail">
                 <article className="dashboard-card dashboard-primary">
                   <p className="panel-label">Live Entry</p>
-                  <h3>{session ? 'Forced Logic control surface' : 'Locked workspace preview'}</h3>
+                  <h3>{session ? 'Forged Logic control surface' : 'Locked workspace preview'}</h3>
                   <p>
                     {session
                       ? 'This is the private layer of the site. It loads module content after login and keeps the public page clean.'
@@ -707,7 +707,7 @@ function App() {
                 <h2>Ready for the next build.</h2>
                 <p>One site, one system, one clean front door for the work.</p>
               </div>
-              <a className="button primary" href="mailto:hello@forced-logic.com">
+              <a className="button primary" href="mailto:hello@forged-logic.com">
                 <Mail size={14} />
                 Contact Us
               </a>

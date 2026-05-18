@@ -1,12 +1,12 @@
-# Forced Logic Website
+# Forged Logic Website
 
-This folder is the live website workspace for Forced Logic.
+This folder is the live website workspace for Forged Logic.
 
 ## What is here
 
 - `index.html` - Vite entry
 - `src/` - React app source
-- `public/forced-logic-logo.png` - brand logo asset
+- `public/forged-logic-logo.png` - brand logo asset
 - `.mcp.json` - MCP config for the site workspace
 - `mcp/site-bridge.mjs` - MCP server for file access
 

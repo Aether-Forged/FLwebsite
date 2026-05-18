@@ -140,7 +140,7 @@ using (
 
 insert into public.workspace_cards (badge, title, body, note, order_index, is_active)
 values
-  ('Ready', 'Live workspace', 'This private layer is the first authenticated surface for Forced Logic.', 'Swap these defaults out for rows in Supabase when you are ready.', 1, true),
+  ('Ready', 'Live workspace', 'This private layer is the first authenticated surface for Forged Logic.', 'Swap these defaults out for rows in Supabase when you are ready.', 1, true),
   ('Next', 'Private modules', 'Add admin tools, content blocks, and project areas here behind login.', 'This section is now wired to accept rows from the database.', 2, true),
   ('Status', 'Deployment', 'GitHub Pages serves the app and the workflow is already connected.', 'Future pushes will update the live URL automatically.', 3, true),
   ('Control', 'Supabase data', 'Workspace cards and approved users both live in Supabase tables.', 'Use the schema file to create the tables in the project.', 4, true)
