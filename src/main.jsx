@@ -308,7 +308,7 @@ function App() {
                 responsive behavior, and practical performance for desktop and mobile workflows.
               </p>
               <div className="hero-actions">
-                <a className="button primary" href={workspaceHref}>
+                <a className="button primary" href="#auth">
                   Access the site
                   <ChevronRight size={14} />
                 </a>
