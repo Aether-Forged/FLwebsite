@@ -112,6 +112,7 @@ function App() {
     [workspaceCards],
   );
   const workspaceHref = `${import.meta.env.BASE_URL}workspace`;
+  const workspaceIntent = window.location.pathname.endsWith('/workspace');
 
   useEffect(() => {
     let isMounted = true;
@@ -440,72 +441,89 @@ function App() {
           {message ? <p className="auth-message">{message}</p> : null}
         </section>
 
-        {session ? (
-          <section id="workspace" className="section-block dashboard-block">
+        <section id="workspace" className="section-block dashboard-block">
             <div className="section-heading">
               <p className="section-kicker">Workspace</p>
-              <h2>Private module workspace.</h2>
+              <h2>{session ? 'Private module workspace.' : 'Workspace locked.'}</h2>
             </div>
             <div className="workspace-status-bar">
               <div className="status-chip">
-                <span className="dot dot-on" />
-                <span>{workspaceStatus}</span>
+                <span className={`dot ${session ? 'dot-on' : 'dot-off'}`} />
+                <span>{session ? workspaceStatus : 'Sign in to unlock the live workspace.'}</span>
               </div>
               <div className="workspace-status-meta">
                 <span>{workspaceModules.length} loaded modules</span>
                 <span>{supabaseStatus.ready ? 'Supabase connected' : 'Local fallback'}</span>
-                <span>{workspaceActivity}</span>
+                <span>{session ? workspaceActivity : 'The workspace is waiting for sign-in.'}</span>
               </div>
             </div>
             <div className="module-workspace">
               <aside className="module-rail">
                 <article className="dashboard-card dashboard-primary">
                   <p className="panel-label">Live Entry</p>
-                  <h3>Forced Logic control surface</h3>
+                  <h3>{session ? 'Forced Logic control surface' : 'Locked workspace preview'}</h3>
                   <p>
-                    This is the private layer of the site. It loads module content after login and
-                    keeps the public page clean.
+                    {session
+                      ? 'This is the private layer of the site. It loads module content after login and keeps the public page clean.'
+                      : 'The workspace route now lands here even before login, so the page changes visibly instead of doing nothing.'}
                   </p>
                   <div className="workspace-summary">
                     <div className="status-chip">
-                      <span className="dot dot-on" />
-                      <span>Signed-in session active</span>
+                      <span className={session ? 'dot dot-on' : 'dot dot-off'} />
+                      <span>{session ? 'Signed-in session active' : 'Sign in required'}</span>
                     </div>
-                    <p className="auth-note">Your account opens straight into the private workspace.</p>
+                    <p className="auth-note">
+                      {session
+                        ? 'Your account opens straight into the private workspace.'
+                        : 'Use the login form above to unlock the module shell.'}
+                    </p>
                   </div>
                   <div className="dashboard-actions">
-                    <a className="button primary" href="#services">
-                      View services
+                    <a className="button primary" href="#auth">
+                      {session ? 'View services' : 'Sign in'}
                     </a>
                     <a className="button secondary" href="#contact">
                       Contact
                     </a>
                   </div>
                 </article>
-                <div className="module-list">
-                  {workspaceModules.map((card) => {
-                    const isActive = card.title === activeModuleId || card.badge === activeModuleId;
-                    return (
-                      <button
-                        className={`module-tile ${isActive ? 'is-active' : ''}`}
-                        type="button"
-                        key={`${card.badge}-${card.title}`}
-                        onClick={() => setActiveModuleId(card.title)}
-                      >
-                        <span className="module-index">{card.index}</span>
-                        <div>
-                          <span className="dashboard-chip">{card.badge}</span>
-                          <h4>{card.title}</h4>
-                        </div>
-                        <p>{card.summary}</p>
-                      </button>
-                    );
-                  })}
-                </div>
+                {session ? (
+                  <div className="module-list">
+                    {workspaceModules.map((card) => {
+                      const isActive = card.title === activeModuleId || card.badge === activeModuleId;
+                      return (
+                        <button
+                          className={`module-tile ${isActive ? 'is-active' : ''}`}
+                          type="button"
+                          key={`${card.badge}-${card.title}`}
+                          onClick={() => setActiveModuleId(card.title)}
+                        >
+                          <span className="module-index">{card.index}</span>
+                          <div>
+                            <span className="dashboard-chip">{card.badge}</span>
+                            <h4>{card.title}</h4>
+                          </div>
+                          <p>{card.summary}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="module-list locked-list">
+                    <article className="module-tile locked-tile is-active">
+                      <span className="module-index">01</span>
+                      <div>
+                        <span className="dashboard-chip">Locked</span>
+                        <h4>Workspace waiting</h4>
+                      </div>
+                      <p>{workspaceIntent ? 'The route is live. Sign in to unlock the private cards.' : 'Choose View workspace to open the locked shell.'}</p>
+                    </article>
+                  </div>
+                )}
               </aside>
 
               <article className="module-detail dashboard-card">
-                {(() => {
+                {session ? (() => {
                   const activeModule =
                     workspaceModules.find(
                       (card) => card.title === activeModuleId || card.badge === activeModuleId,
@@ -587,11 +605,40 @@ function App() {
                       ) : null}
                     </>
                   );
-                })()}
+                })() : (
+                  <>
+                    <p className="panel-label">Active module</p>
+                    <h3>
+                      <CircleGauge size={20} />
+                      Workspace locked
+                    </h3>
+                    <p>Open the sign-in form above to unlock the live workspace cards and actions.</p>
+                    <div className="module-detail-grid">
+                      <div>
+                        <span>Badge</span>
+                        <strong>Locked</strong>
+                      </div>
+                      <div>
+                        <span>State</span>
+                        <strong>Awaiting login</strong>
+                      </div>
+                      <div>
+                        <span>Source</span>
+                        <strong>{supabaseStatus.ready ? 'Supabase ready' : 'Local fallback'}</strong>
+                      </div>
+                      <div>
+                        <span>Mode</span>
+                        <strong>Front door</strong>
+                      </div>
+                    </div>
+                    <div className="module-detail-note">
+                      <p>The workspace route is live, but the private module grid only opens after sign-in.</p>
+                    </div>
+                  </>
+                )}
               </article>
             </div>
           </section>
-        ) : null}
 
         <section id="services" className="section-block">
           <div className="section-heading">
