@@ -93,6 +93,12 @@ function normalizeWorkspaceCard(card, index) {
   };
 }
 
+function scrollWorkspaceIntoView() {
+  window.requestAnimationFrame(() => {
+    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -208,6 +214,14 @@ function App() {
     setWorkspaceActivity(`Opened ${moduleTitle}.`);
   }
 
+  function openWorkspaceRoute(event) {
+    event.preventDefault();
+    if (window.location.pathname !== workspaceHref) {
+      window.history.pushState({}, '', workspaceHref);
+    }
+    scrollWorkspaceIntoView();
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage('');
@@ -250,7 +264,7 @@ function App() {
     if (!session) return undefined;
 
     const timeout = window.setTimeout(() => {
-      document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollWorkspaceIntoView();
     }, 200);
 
     return () => window.clearTimeout(timeout);
@@ -260,21 +274,11 @@ function App() {
     if (!workspaceIntent) return undefined;
 
     const timeout = window.setTimeout(() => {
-      document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollWorkspaceIntoView();
     }, 200);
 
     return () => window.clearTimeout(timeout);
   }, [workspaceIntent]);
-
-  useEffect(() => {
-    if (!window.location.pathname.endsWith('/workspace')) return undefined;
-
-    const timeout = window.setTimeout(() => {
-      document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 200);
-
-    return () => window.clearTimeout(timeout);
-  }, []);
 
   useEffect(() => {
     if (!workspaceModules.length) return;
@@ -303,7 +307,7 @@ function App() {
         </div>
         <nav className="nav">
           <a href="#auth">Login</a>
-          <a href={workspaceHref}>Workspace</a>
+          <a href={workspaceHref} onClick={openWorkspaceRoute}>Workspace</a>
           <a href="#contact">Contact</a>
         </nav>
       </header>
@@ -323,7 +327,7 @@ function App() {
                   Access the site
                   <ChevronRight size={14} />
                 </a>
-                <a className="button secondary" href={workspaceHref}>
+                <a className="button secondary" href={workspaceHref} onClick={openWorkspaceRoute}>
                   View workspace
                 </a>
               </div>
