@@ -15,8 +15,8 @@
   --workspace-panel-border: rgba(196, 139, 92, 0.28);
   --workspace-text: #f6e7d2;
   --workspace-muted: rgba(244, 222, 198, 0.74);
-  --workspace-accent: #d8a164;
-  --workspace-accent-2: #f2c89b;
+  --workspace-accent: #c9874a;
+  --workspace-accent-2: #ffd4a3;
   --workspace-shadow: 0 24px 80px rgba(16, 8, 4, 0.6);
 }
 
@@ -199,13 +199,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 .workspace-route .dot-on {
-  background: #ffcf9f;
-  box-shadow: 0 0 12px rgba(255, 207, 159, 0.7);
+  background: #ffbf78;
+  box-shadow: 0 0 12px rgba(255, 191, 120, 0.7);
 }
 
 .workspace-route .dot-off {
-  background: #c7885f;
-  box-shadow: 0 0 12px rgba(199, 136, 95, 0.45);
+  background: #9f6340;
+  box-shadow: 0 0 12px rgba(159, 99, 64, 0.45);
 }
 
 .workspace-route .module-tile:hover,
