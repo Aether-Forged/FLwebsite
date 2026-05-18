@@ -323,7 +323,7 @@ function App() {
         </nav>
       </header>
 
-      <main>
+      <main className={workspaceIntent ? 'workspace-route' : undefined}>
         {!workspaceIntent ? (
           <section className="hero">
             <div className="hero-copy">

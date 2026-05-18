@@ -111,6 +111,20 @@ a { color: inherit; text-decoration: none; }
   gap: 20px;
 }
 
+.workspace-route {
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-route .dashboard-block {
+  order: 1;
+  margin-top: 14px;
+}
+
+.workspace-route .auth-block {
+  order: 2;
+}
+
 .auth-form {
   display: grid;
   gap: 16px;
