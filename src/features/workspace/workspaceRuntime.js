@@ -1,5 +1,7 @@
 import { supabase } from '../../lib/supabaseClient';
 
+const RUNTIME_INIT_TIMEOUT_MS = 15000;
+
 const defaultWorkspaceCards = [
   {
     badge: 'Overview',
@@ -69,11 +71,62 @@ const defaultReadiness = {
 
 let readiness = structuredClone(defaultReadiness);
 const subscribers = new Set();
+const runtimeHost = globalThis.__workspaceRuntimeHost ??= {
+  initialized: false,
+  authListenerAttached: false,
+  authSubscription: null,
+  bootPromise: null,
+  initTimeoutId: null,
+  generation: 0,
+  currentReadiness: readiness,
+  subscribers,
+};
 
 function emit() {
+  runtimeHost.currentReadiness = readiness;
   for (const listener of subscribers) {
     listener(readiness);
   }
+}
+
+function clearRuntimeInitTimeout() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (runtimeHost.initTimeoutId) {
+    window.clearTimeout(runtimeHost.initTimeoutId);
+    runtimeHost.initTimeoutId = null;
+  }
+}
+
+function scheduleRuntimeInitTimeout() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  clearRuntimeInitTimeout();
+
+  runtimeHost.initTimeoutId = window.setTimeout(() => {
+    const activeStatuses = new Set([
+      'runtime_ready',
+      'runtime_error',
+      'runtime_degraded',
+      'unauthenticated',
+    ]);
+
+    if (activeStatuses.has(readiness.status)) {
+      clearRuntimeInitTimeout();
+      return;
+    }
+
+    runtimeFailure(
+      'RUNTIME_TIMEOUT',
+      'Workspace runtime initialization timed out.',
+      true,
+      'Retry initialization or refresh the page.',
+      'workspace_degraded',
+    );
+    clearRuntimeInitTimeout();
+  }, RUNTIME_INIT_TIMEOUT_MS);
 }
 
 function transition(nextStatus, patch = {}) {
@@ -86,32 +139,66 @@ function transition(nextStatus, patch = {}) {
     lastErrorCode: keepsErrorCode ? readiness.lastErrorCode : patch.lastErrorCode ?? null,
   };
   console.log(`[RUNTIME] ${nextStatus}`);
+  if (
+    nextStatus === 'runtime_ready' ||
+    nextStatus === 'runtime_error' ||
+    nextStatus === 'runtime_degraded' ||
+    nextStatus === 'unauthenticated'
+  ) {
+    clearRuntimeInitTimeout();
+  }
   emit();
   return readiness;
 }
 
-function runtimeFailure(code, message, recoverable, nextAction, safeUiState) {
+function patchReadiness(patch = {}) {
+  readiness = {
+    ...readiness,
+    ...patch,
+  };
+  emit();
+  return readiness;
+}
+
+function bumpGeneration() {
+  runtimeHost.generation += 1;
+  return runtimeHost.generation;
+}
+
+function isStaleGeneration(capturedGeneration) {
+  return capturedGeneration !== runtimeHost.generation;
+}
+
+function ignoreStaleResult() {
+  console.log('[RUNTIME] stale_result_ignored');
+}
+
+function runtimeFailure(code, message, recoverable, nextAction, safeUiState, blocking = false) {
   const failure = {
     code,
     message,
     recoverable,
     nextAction,
     safeUiState,
+    blocking,
     timestamp: new Date().toISOString(),
   };
 
+  const lastFailure = readiness.errors[readiness.errors.length - 1];
+  const errors = lastFailure?.code === code ? [...readiness.errors.slice(0, -1), failure] : [...readiness.errors, failure];
+
   readiness = {
     ...readiness,
-    errors: [...readiness.errors, failure],
+    errors,
     lastErrorCode: code,
   };
 
-  transition(recoverable ? 'runtime_degraded' : 'runtime_error', {
+  transition(blocking ? 'runtime_error' : recoverable ? 'runtime_degraded' : 'runtime_error', {
     mcp: {
       ...readiness.mcp,
       available: readiness.mcp.available,
       failureReason: message,
-      initializationStatus: recoverable ? 'degraded' : 'failed',
+      initializationStatus: blocking ? 'failed' : recoverable ? 'degraded' : 'failed',
     },
   });
 
@@ -133,15 +220,15 @@ function normalizeWorkspaceCard(card, index) {
 }
 
 function setWorkspaceState(patch = {}) {
-  readiness = {
-    ...readiness,
-    ...patch,
-  };
-  emit();
-  return readiness;
+  return patchReadiness(patch);
 }
 
-async function loadWorkspaceForSession(session) {
+async function loadWorkspaceForSession(session, capturedGeneration = runtimeHost.generation) {
+  if (isStaleGeneration(capturedGeneration)) {
+    ignoreStaleResult();
+    return readiness;
+  }
+
   if (!supabase) {
     transition('runtime_degraded', {
       supabase: {
@@ -191,6 +278,11 @@ async function loadWorkspaceForSession(session) {
       .eq('is_active', true)
       .order('order_index', { ascending: true });
 
+    if (isStaleGeneration(capturedGeneration)) {
+      ignoreStaleResult();
+      return readiness;
+    }
+
     if (cardsError) {
       runtimeFailure(
         'SUPABASE_QUERY_FAILED',
@@ -227,6 +319,11 @@ async function loadWorkspaceForSession(session) {
       });
     }
   } catch (error) {
+    if (isStaleGeneration(capturedGeneration)) {
+      ignoreStaleResult();
+      return readiness;
+    }
+
     runtimeFailure(
       'SUPABASE_QUERY_FAILED',
       `Workspace load failed: ${error?.message || 'Unknown error'}`,
@@ -242,6 +339,11 @@ async function loadWorkspaceForSession(session) {
       workspaceActivity: 'Login to load live workspace cards.',
       activeModuleId: defaultWorkspaceCards[0].title,
     });
+  }
+
+  if (isStaleGeneration(capturedGeneration)) {
+    ignoreStaleResult();
+    return readiness;
   }
 
   transition('hydrating_runtime', {
@@ -261,13 +363,17 @@ async function loadWorkspaceForSession(session) {
     session,
   });
 
+  clearRuntimeInitTimeout();
   return readiness;
 }
 
 export function initializeWorkspaceRuntime() {
-  if (readiness.status !== 'unauthenticated' || readiness.session) {
-    return Promise.resolve(readiness);
+  const capturedGeneration = bumpGeneration();
+  if (runtimeHost.bootPromise) {
+    return runtimeHost.bootPromise;
   }
+  runtimeHost.initialized = true;
+  scheduleRuntimeInitTimeout();
 
   transition('authenticating', {
     supabase: {
@@ -278,10 +384,10 @@ export function initializeWorkspaceRuntime() {
     },
   });
 
-  return Promise.resolve()
+  runtimeHost.bootPromise = Promise.resolve()
     .then(async () => {
       if (!supabase) {
-        return loadWorkspaceForSession(null);
+        return loadWorkspaceForSession(null, capturedGeneration);
       }
 
       const { data } = await supabase.auth.getSession();
@@ -292,14 +398,14 @@ export function initializeWorkspaceRuntime() {
         permissions: nextSession?.user?.app_metadata?.roles ?? [],
       });
       if (!nextSession) {
-        return loadWorkspaceForSession(null);
+        return loadWorkspaceForSession(null, capturedGeneration);
       }
       transition('auth_ready', {
         session: nextSession,
         userId: nextSession.user?.id ?? null,
         permissions: nextSession.user?.app_metadata?.roles ?? [],
       });
-      return loadWorkspaceForSession(nextSession);
+      return loadWorkspaceForSession(nextSession, capturedGeneration);
     })
     .catch((error) => {
       runtimeFailure(
@@ -310,16 +416,57 @@ export function initializeWorkspaceRuntime() {
         'login_required',
       );
       return readiness;
+    })
+    .finally(() => {
+      runtimeHost.bootPromise = null;
     });
+
+  if (supabase && !runtimeHost.authListenerAttached) {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setWorkspaceState({
+        session: nextSession ?? null,
+        userId: nextSession?.user?.id ?? null,
+        permissions: nextSession?.user?.app_metadata?.roles ?? [],
+      });
+
+      if (event === 'SIGNED_OUT') {
+        bumpGeneration();
+        runtimeHost.bootPromise = null;
+        clearRuntimeInitTimeout();
+        readiness = {
+          ...defaultReadiness,
+          supabase: {
+            ...defaultReadiness.supabase,
+            connected: Boolean(supabase),
+            lastChecked: new Date().toISOString(),
+            status: supabase ? 'ready' : 'unavailable',
+          },
+        };
+        console.log('[RUNTIME] unauthenticated');
+        emit();
+        return;
+      }
+
+      if (nextSession?.user?.email) {
+        void loadWorkspaceForSession(nextSession, runtimeHost.generation);
+      }
+    });
+
+    runtimeHost.authListenerAttached = true;
+    runtimeHost.authSubscription = data.subscription;
+  }
+
+  return runtimeHost.bootPromise;
 }
 
 export function refreshWorkspaceRuntime() {
+  const capturedGeneration = bumpGeneration();
   readiness = {
     ...readiness,
     workspaceRefreshTick: readiness.workspaceRefreshTick + 1,
   };
   emit();
-  return loadWorkspaceForSession(readiness.session);
+  return loadWorkspaceForSession(readiness.session, capturedGeneration);
 }
 
 export function getWorkspaceReadiness() {
@@ -332,7 +479,14 @@ export function subscribeWorkspaceRuntime(listener) {
   return () => subscribers.delete(listener);
 }
 
+export function selectWorkspaceModule(moduleTitle) {
+  return patchReadiness({
+    activeModuleId: moduleTitle,
+  });
+}
+
 export async function signIn({ email, password }) {
+  const capturedGeneration = bumpGeneration();
   if (!supabase) {
     return runtimeFailure(
       'SUPABASE_UNAVAILABLE',
@@ -368,6 +522,11 @@ export async function signIn({ email, password }) {
   const { data } = await supabase.auth.getSession();
   const nextSession = data.session ?? null;
 
+  if (isStaleGeneration(capturedGeneration)) {
+    ignoreStaleResult();
+    return readiness;
+  }
+
   setWorkspaceState({
     session: nextSession,
     userId: nextSession?.user?.id ?? null,
@@ -380,14 +539,16 @@ export async function signIn({ email, password }) {
     permissions: nextSession?.user?.app_metadata?.roles ?? [],
   });
 
-  return loadWorkspaceForSession(nextSession);
+  return loadWorkspaceForSession(nextSession, capturedGeneration);
 }
 
 export async function signOut() {
+  bumpGeneration();
   if (!supabase) {
     return readiness;
   }
 
+  clearRuntimeInitTimeout();
   const { error } = await supabase.auth.signOut();
 
   if (error) {
@@ -402,7 +563,28 @@ export async function signOut() {
   }
 
   return transition('unauthenticated', {
-    ...defaultReadiness,
+    session: null,
+    userId: null,
+    workspaceId: null,
+    permissions: [],
+    github: {
+      available: false,
+      repo: null,
+      scope: 'workspace',
+      status: 'unavailable',
+    },
+    mcp: {
+      ...defaultReadiness.mcp,
+      available: false,
+      initializationStatus: 'idle',
+      failureReason: 'MCP bridge not initialized in browser runtime.',
+    },
+    errors: [],
+    workspaceCards: defaultWorkspaceCards,
+    workspaceStatus: 'Signed out.',
+    workspaceActivity: 'Login to load live workspace cards.',
+    activeModuleId: defaultWorkspaceCards[0].title,
+    workspaceRefreshTick: 0,
     supabase: {
       ...defaultReadiness.supabase,
       connected: Boolean(supabase),

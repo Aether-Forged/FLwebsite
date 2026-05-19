@@ -17,6 +17,7 @@ import {
   getWorkspaceReadiness,
   initializeWorkspaceRuntime,
   refreshWorkspaceRuntime,
+  selectWorkspaceModule,
   signIn,
   signOut,
   subscribeWorkspaceRuntime,
@@ -71,9 +72,6 @@ function App() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [readiness, setReadiness] = useState(getWorkspaceReadiness());
-  const [activeModuleId, setActiveModuleId] = useState(
-    getWorkspaceReadiness().activeModuleId,
-  );
   const buildSha = import.meta.env.VITE_BUILD_SHA || 'local-dev';
   const session = readiness.session ?? null;
   const loading = readiness.status === 'authenticating';
@@ -92,10 +90,6 @@ function App() {
     void initializeWorkspaceRuntime().then(setReadiness);
     return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    setActiveModuleId(readiness.activeModuleId);
-  }, [readiness.activeModuleId]);
 
   useEffect(() => {
     function handlePopState() {
@@ -175,7 +169,7 @@ function App() {
   }
 
   function openModule(moduleTitle) {
-    setActiveModuleId(moduleTitle);
+    void selectWorkspaceModule(moduleTitle);
     setMessage(`Opened ${moduleTitle}.`);
   }
 
@@ -395,7 +389,7 @@ function App() {
                 {session ? (
                   <div className="module-list">
                     {workspaceModules.map((card) => {
-                      const isActive = card.title === activeModuleId || card.badge === activeModuleId;
+                      const isActive = card.title === readiness.activeModuleId || card.badge === readiness.activeModuleId;
                       return (
                         <button
                           className={`module-tile ${isActive ? 'is-active' : ''}`}
@@ -431,7 +425,7 @@ function App() {
                 {session ? (() => {
                   const activeModule =
                     workspaceModules.find(
-                      (card) => card.title === activeModuleId || card.badge === activeModuleId,
+                      (card) => card.title === readiness.activeModuleId || card.badge === readiness.activeModuleId,
                     ) ?? workspaceModules[0];
 
                   return (
